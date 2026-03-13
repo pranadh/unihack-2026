@@ -23,10 +23,6 @@ jobs:
       matrix:
         project: [frontend, backend]
 
-    defaults:
-      run:
-        working-directory: ${{ matrix.project }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,18 +32,17 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: ${{ matrix.project }}/package-lock.json
 
       - name: Install dependencies
         run: |
-          if [ -f package-lock.json ]; then
-            npm ci
+          if [ -f "${{ matrix.project }}/package-lock.json" ]; then
+            npm ci --prefix "${{ matrix.project }}"
           else
-            npm install
+            npm install --prefix "${{ matrix.project }}"
           fi
 
       - name: Build
-        run: npm run build --if-present
+        run: npm run build --prefix "${{ matrix.project }}" --if-present
 
       - name: Lint
-        run: npm run lint --if-present
+        run: npm run lint --prefix "${{ matrix.project }}" --if-present
