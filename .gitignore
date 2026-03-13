@@ -1,5 +1,6 @@
 # Agent/automation artifacts
 .agents/
+AGENTS.md
 
 # Environment and secrets
 .env
