@@ -4,13 +4,13 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - "app/**"
+      - "frontend/**"
       - "backend/**"
       - ".github/workflows/ci.yml"
   push:
     branches: [main]
     paths:
-      - "app/**"
+      - "frontend/**"
       - "backend/**"
       - ".github/workflows/ci.yml"
 
@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: [app, backend]
+        project: [frontend, backend]
 
     defaults:
       run:
@@ -39,7 +39,12 @@ jobs:
           cache-dependency-path: ${{ matrix.project }}/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: Build
         run: npm run build --if-present
