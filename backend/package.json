@@ -7,13 +7,19 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "lint": "tsc --noEmit -p tsconfig.json"
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "db:check": "tsx src/scripts/db-check.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.0",
     "fastify": "^5.6.2"
   },
   "devDependencies": {
     "@types/node": "^20.19.18",
+    "prisma": "^6.19.0",
     "tsx": "^4.20.5",
     "typescript": "^5.9.3"
   }
