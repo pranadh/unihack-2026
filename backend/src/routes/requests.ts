@@ -9,13 +9,76 @@
 
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
-import { isValidYouTubeUrl } from "../lib/youtube.js";
+import { extractYouTubeVideoId, isValidYouTubeUrl } from "../lib/youtube.js";
 import {
   createSongRequest,
   retryRequest,
 } from "../lib/processing.js";
 
+const YOUTUBE_VIDEO_ID_RE = /^[\w-]{11}$/;
+
 export async function requestRoutes(app: FastifyInstance): Promise<void> {
+  // GET /api/requests/lookup - Check if a processed timeline already exists
+  app.get<{
+    Querystring: { url?: string; videoId?: string };
+  }>("/api/requests/lookup", async (request, reply) => {
+    const rawUrl = request.query.url?.trim();
+    const rawVideoId = request.query.videoId?.trim();
+
+    let videoId: string | null = null;
+
+    if (rawVideoId) {
+      if (!YOUTUBE_VIDEO_ID_RE.test(rawVideoId)) {
+        return reply.status(400).send({
+          error: "videoId must be a valid YouTube video ID.",
+        });
+      }
+      videoId = rawVideoId;
+    } else if (rawUrl) {
+      videoId = extractYouTubeVideoId(rawUrl);
+    }
+
+    if (!videoId) {
+      return reply.status(400).send({
+        error: "Provide a valid YouTube url or videoId.",
+      });
+    }
+
+    const existing = await prisma.songRequest.findFirst({
+      where: {
+        youtubeVideoId: videoId,
+        status: "complete",
+      },
+      orderBy: { completedAt: "desc" },
+      include: {
+        chordTimeline: {
+          include: {
+            chordEvents: {
+              orderBy: { startTimeSec: "asc" },
+            },
+          },
+        },
+      },
+    });
+
+    if (!existing?.chordTimeline) {
+      return reply.send({ found: false, youtubeVideoId: videoId });
+    }
+
+    return reply.send({
+      found: true,
+      requestId: existing.id,
+      youtubeVideoId: existing.youtubeVideoId,
+      durationSeconds: existing.chordTimeline.durationSeconds,
+      generatedAt: existing.chordTimeline.generatedAt,
+      chords: existing.chordTimeline.chordEvents.map((event) => ({
+        start: event.startTimeSec,
+        end: event.endTimeSec,
+        chord: event.chordLabel,
+      })),
+    });
+  });
+
   // POST /api/requests - Submit YouTube URL
   app.post<{
     Body: { url: string; userId?: string };

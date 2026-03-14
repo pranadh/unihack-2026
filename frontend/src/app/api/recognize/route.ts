@@ -32,6 +32,14 @@ interface TimelineResponse {
   durationSeconds?: number;
 }
 
+interface LookupResponse {
+  found: boolean;
+  requestId?: string;
+  youtubeVideoId?: string;
+  durationSeconds?: number;
+  chords?: ChordEvent[];
+}
+
 async function parseError(response: Response): Promise<string> {
   try {
     const json = (await response.json()) as { error?: string; message?: string };
@@ -97,6 +105,33 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const lookupRes = await fetch(
+      `${API_BASE_URL}/api/requests/lookup?url=${encodeURIComponent(url)}`,
+      {
+        method: "GET",
+        cache: "no-store",
+        signal: AbortSignal.timeout(20_000),
+      }
+    );
+
+    if (!lookupRes.ok) {
+      return NextResponse.json(
+        { error: await parseError(lookupRes) },
+        { status: lookupRes.status }
+      );
+    }
+
+    const lookupData = (await lookupRes.json()) as LookupResponse;
+
+    if (lookupData.found) {
+      return NextResponse.json({
+        requestId: lookupData.requestId,
+        chords: lookupData.chords ?? [],
+        duration: lookupData.durationSeconds,
+        cacheHit: true,
+      });
+    }
+
     const createRes = await fetch(`${API_BASE_URL}/api/requests`, {
       method: "POST",
       headers: {
@@ -140,6 +175,7 @@ export async function POST(request: NextRequest) {
       requestId: createData.id,
       chords: timeline.chords,
       duration: timeline.durationSeconds,
+      cacheHit: false,
     });
   } catch (err) {
     const message =
