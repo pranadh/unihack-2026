@@ -13,7 +13,8 @@ import ChordDiagram from "./ChordDiagram";
  * of seconds ahead of and behind the current time.
  *
  * Uses CSS `transform: translateY()` for GPU-accelerated animation.
- * Updates position via requestAnimationFrame for smooth 60fps movement.
+ * Updates position via requestAnimationFrame for smooth 60fps movement,
+ * interpolating between the 100ms state updates from the YouTube player.
  */
 
 interface FallingChordsProps {
@@ -78,6 +79,42 @@ export default function FallingChords({
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(600);
 
+  // ── Smooth interpolation state ──
+  // We track when the last currentTime update arrived and interpolate forward
+  // using performance.now() to achieve 60fps smooth scrolling.
+  const interpRef = useRef({
+    baseTime: 0,          // last currentTime from props
+    baseTimestamp: 0,     // performance.now() when baseTime was received
+    prevBaseTime: 0,      // previous baseTime (to detect seeks/pauses)
+    isPlaying: false,     // whether playback appears active
+  });
+
+  // Update interpolation anchor whenever currentTime changes from props
+  useEffect(() => {
+    const now = performance.now();
+    const prev = interpRef.current;
+    const timeDelta = currentTime - prev.baseTime;
+
+    // Detect if playback is active: time moved forward by ~50-200ms
+    // A seek or pause will have a very different delta
+    const isNormalTick = timeDelta > 0.01 && timeDelta < 0.5;
+
+    prev.prevBaseTime = prev.baseTime;
+    prev.baseTime = currentTime;
+    prev.baseTimestamp = now;
+    prev.isPlaying = isNormalTick;
+  }, [currentTime]);
+
+  // ── rAF-driven lane ──
+  // We use a ref to the lane container and update transforms directly in rAF,
+  // bypassing React re-renders for the falling blocks.
+  const laneRef = useRef<HTMLDivElement>(null);
+  const rafIdRef = useRef(0);
+  const nowLabelRef = useRef<HTMLDivElement>(null);
+
+  // Store chord block refs for direct DOM manipulation
+  const blockRefsMap = useRef<Map<string, HTMLButtonElement>>(new Map());
+
   // Observe container height changes
   useEffect(() => {
     const el = containerRef.current;
@@ -112,18 +149,14 @@ export default function FallingChords({
     return -1;
   }, [chords, currentTime]);
 
-  // Compute which chords are visible in the falling window
-  const visibleWindow = useMemo(() => {
-    const windowStart = currentTime - LOOK_BEHIND_SECONDS;
-    const windowEnd = currentTime + LOOK_AHEAD_SECONDS;
-    return { windowStart, windowEnd };
-  }, [currentTime]);
-
-  // Get visible chords using binary search for performance
+  // Compute visible chords with extra buffer for smooth scrolling
   const visibleChords = useMemo(() => {
     if (chords.length === 0) return [];
 
-    const { windowStart, windowEnd } = visibleWindow;
+    // Add extra buffer beyond the visible window so blocks don't pop in/out
+    const bufferS = 0.5;
+    const windowStart = currentTime - LOOK_BEHIND_SECONDS - bufferS;
+    const windowEnd = currentTime + LOOK_AHEAD_SECONDS + bufferS;
 
     // Find first chord that could be visible (end > windowStart)
     let lo = 0;
@@ -147,21 +180,57 @@ export default function FallingChords({
       result.push({ chord: chords[i], index: i });
     }
     return result;
-  }, [chords, visibleWindow]);
+  }, [chords, currentTime]);
 
-  // Convert a time offset (relative to currentTime) to a Y pixel position
-  const timeToY = useCallback(
-    (time: number): number => {
-      // At currentTime, Y = hitLineY (HIT_LINE_POSITION * containerHeight)
-      // time > currentTime -> Y < hitLineY (above = future)
-      // time < currentTime -> Y > hitLineY (below = past)
+  // ── rAF animation loop ──
+  // Directly update DOM positions every frame using interpolated time.
+  useEffect(() => {
+    const animate = () => {
+      const interp = interpRef.current;
+      let smoothTime = interp.baseTime;
+
+      // Only interpolate forward if playback appears active
+      if (interp.isPlaying) {
+        const elapsed = (performance.now() - interp.baseTimestamp) / 1000;
+        // Cap interpolation to 250ms to avoid overshooting during pauses
+        smoothTime = interp.baseTime + Math.min(elapsed, 0.25);
+      }
+
       const hitLineY = HIT_LINE_POSITION * containerHeight;
       const pixelsPerSecond = hitLineY / LOOK_AHEAD_SECONDS;
-      const offset = time - currentTime; // positive = future
-      return hitLineY - offset * pixelsPerSecond;
-    },
-    [containerHeight, currentTime]
-  );
+
+      // Update each chord block's position
+      blockRefsMap.current.forEach((el) => {
+        if (!el) return;
+
+        // Parse the data attributes for start/end time
+        const startTime = parseFloat(el.dataset.start ?? "0");
+        const endTime = parseFloat(el.dataset.end ?? "0");
+
+        const topY = hitLineY - (startTime - smoothTime) * pixelsPerSecond;
+        const bottomY = hitLineY - (endTime - smoothTime) * pixelsPerSecond;
+        const height = Math.max(bottomY - topY, 36);
+
+        // Use transform for GPU acceleration (no layout thrash)
+        el.style.transform = `translateY(${topY}px)`;
+        el.style.height = `${height}px`;
+
+        // Hide blocks that are completely off-screen
+        const isOffscreen = topY + height < -50 || topY > containerHeight + 50;
+        el.style.visibility = isOffscreen ? "hidden" : "visible";
+      });
+
+      // Update "now" timestamp label
+      if (nowLabelRef.current) {
+        nowLabelRef.current.textContent = formatTime(smoothTime);
+      }
+
+      rafIdRef.current = requestAnimationFrame(animate);
+    };
+
+    rafIdRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafIdRef.current);
+  }, [containerHeight, visibleChords]);
 
   // Find unique chord names for the upcoming section (for "next up" display)
   const activeChord = activeIndex >= 0 ? chords[activeIndex] : null;
@@ -180,6 +249,18 @@ export default function FallingChords({
     }
     return null;
   }, [chords, activeIndex, currentTime]);
+
+  // Callback to register block refs
+  const setBlockRef = useCallback(
+    (key: string) => (el: HTMLButtonElement | null) => {
+      if (el) {
+        blockRefsMap.current.set(key, el);
+      } else {
+        blockRefsMap.current.delete(key);
+      }
+    },
+    []
+  );
 
   if (chords.length === 0) {
     return (
@@ -279,53 +360,53 @@ export default function FallingChords({
           }}
         />
 
-        {/* Falling chord blocks */}
-        {visibleChords.map(({ chord, index }) => {
-          const topY = timeToY(chord.start);
-          const bottomY = timeToY(chord.end);
-          const height = Math.max(bottomY - topY, 24); // minimum height for readability
-          const isActive = index === activeIndex;
-          const isPast = chord.end < currentTime;
-          const colors = chordColors(chord.chord);
+        {/* Falling chord blocks - positioned by rAF, not React render */}
+        <div ref={laneRef}>
+          {visibleChords.map(({ chord, index }) => {
+            const isActive = index === activeIndex;
+            const isPast = chord.end < currentTime;
+            const colors = chordColors(chord.chord);
+            const bgOpacity = isActive ? 0.35 : isPast ? 0.1 : 0.25;
+            const blockKey = `${index}-${chord.start}`;
 
-          const bgOpacity = isActive ? 0.3 : isPast ? 0.1 : 0.2;
-
-          return (
-            <button
-              key={`${index}-${chord.start}`}
-              className={`absolute left-2 right-2 z-20 flex items-center justify-center rounded-md border-l-4 transition-opacity ${
-                isActive
-                  ? "ring-2 ring-violet-400/60 shadow-lg shadow-violet-500/20"
-                  : isPast
-                    ? "opacity-40"
-                    : ""
-              }`}
-              style={{
-                top: topY,
-                height,
-                backgroundColor: `rgba(${colors.bg}, ${bgOpacity})`,
-                borderLeftColor: colors.border,
-              }}
-              onClick={() => onSeek?.(chord.start)}
-              aria-label={`${chord.chord} at ${formatTime(chord.start)}`}
-            >
-              <span
-                className={`text-sm font-bold ${height < 32 ? "text-xs" : ""}`}
-                style={{ color: isActive ? "#ffffff" : colors.text }}
+            return (
+              <button
+                key={blockKey}
+                ref={setBlockRef(blockKey)}
+                data-start={chord.start}
+                data-end={chord.end}
+                className={`absolute left-2 right-2 z-20 flex items-center justify-center rounded-lg border-l-4 will-change-transform ${
+                  isActive
+                    ? "ring-2 ring-violet-400/60 shadow-lg shadow-violet-500/20"
+                    : isPast
+                      ? "opacity-40"
+                      : ""
+                }`}
+                style={{
+                  top: 0, // actual position set by transform in rAF
+                  backgroundColor: `rgba(${colors.bg}, ${bgOpacity})`,
+                  borderLeftColor: colors.border,
+                }}
+                onClick={() => onSeek?.(chord.start)}
+                aria-label={`${chord.chord} at ${formatTime(chord.start)}`}
               >
-                {chord.chord}
-              </span>
-              {height >= 40 && (
-                <span className="ml-2 text-[10px] text-zinc-500">
+                <span
+                  className="text-base font-bold"
+                  style={{ color: isActive ? "#ffffff" : colors.text }}
+                >
+                  {chord.chord}
+                </span>
+                <span className="ml-2 text-[11px] text-zinc-500">
                   {formatTime(chord.start)}
                 </span>
-              )}
-            </button>
-          );
-        })}
+              </button>
+            );
+          })}
+        </div>
 
         {/* "Now" timestamp at hit line */}
         <div
+          ref={nowLabelRef}
           className="absolute left-1 z-10 text-[10px] font-mono text-violet-400/60 pointer-events-none"
           style={{ top: hitLineY + 4 }}
         >

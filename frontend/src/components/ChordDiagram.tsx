@@ -121,12 +121,43 @@ const CHORD_DB: Record<string, ChordVoicing> = {
   "Bbm": { frets: [-1, 1, 3, 3, 2, 1], baseFret: 1, barres: [1] },
 };
 
-// Normalize chord names: "Cmaj" -> "C", "Cmin" -> "Cm", etc.
+/**
+ * Normalize chord names from various formats to our CHORD_DB key format.
+ *
+ * Handles:
+ *  - MIREX colon format: "C:maj" -> "C", "A:min" -> "Am", "F#:min7" -> "F#m7"
+ *  - Long quality names: "Cmaj" -> "C", "Cmin" -> "Cm", "Cmin7" -> "Cm7"
+ *  - No-chord tokens: "N", "NC", "X" -> ""
+ */
 function normalizeChordName(raw: string): string {
   let name = raw.trim();
   // Handle "N" (no chord) or empty
   if (!name || name === "N" || name === "NC" || name === "X") return "";
 
+  // ── MIREX colon format: "root:quality" ──
+  // e.g. "C:maj", "A:min", "F#:min7", "Bb:sus4", "D:7", "G:maj7", "E:aug", "B:dim"
+  if (name.includes(":")) {
+    const [root, quality] = name.split(":", 2);
+    if (!quality || quality === "maj") return root; // "C:maj" -> "C"
+    if (quality === "min") return `${root}m`;        // "A:min" -> "Am"
+    if (quality === "min7") return `${root}m7`;      // "F#:min7" -> "F#m7"
+    if (quality === "maj7") return `${root}maj7`;    // "G:maj7" -> "Gmaj7"
+    if (quality === "7") return `${root}7`;          // "D:7" -> "D7"
+    if (quality === "sus2") return `${root}sus2`;
+    if (quality === "sus4") return `${root}sus4`;
+    if (quality === "dim") return `${root}dim`;
+    if (quality === "dim7") return `${root}dim7`;
+    if (quality === "aug") return `${root}aug`;
+    if (quality === "hdim7") return `${root}m7`;     // half-dim -> closest: m7
+    if (quality === "minmaj7") return `${root}m7`;   // minor-major-7 -> closest: m7
+    if (quality === "9") return `${root}7`;          // 9th -> closest: 7
+    if (quality === "min9") return `${root}m7`;      // min9 -> closest: m7
+    if (quality === "maj9") return `${root}maj7`;    // maj9 -> closest: maj7
+    // Fallback: try root + quality directly (e.g. "C:add9" -> "Cadd9")
+    return `${root}${quality}`;
+  }
+
+  // ── Standard text format ──
   // "Cmaj" -> "C" (but not "Cmaj7")
   name = name.replace(/maj(?!7)$/i, "");
   // "Cmin" -> "Cm" (but not "Cmin7")
