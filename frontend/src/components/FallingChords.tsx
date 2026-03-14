@@ -5,12 +5,12 @@ import type { ChordEvent } from "@/lib/api";
 import ChordDiagram from "./ChordDiagram";
 
 /**
- * osu!mania-style falling chord display.
+ * osu!mania-style rising chord display.
  *
- * Chords fall from the top of the lane toward a "hit line" near the bottom.
+ * Chords rise from the bottom of the lane toward a "hit line" near the top.
  * When the current playback time matches a chord's start, that chord's leading
- * edge arrives at the hit line. The visible window covers a configurable number
- * of seconds ahead of and behind the current time.
+ * (top) edge reaches the hit line. The visible window covers a configurable
+ * number of seconds ahead of and behind the current time.
  *
  * Uses CSS `transform: translateY()` for GPU-accelerated animation.
  * Updates position via requestAnimationFrame for smooth 60fps movement,
@@ -24,12 +24,12 @@ interface FallingChordsProps {
   onSeek?: (time: number) => void;
 }
 
-// How many seconds of "look-ahead" are visible above the hit line
+// How many seconds of "look-ahead" are visible below the hit line
 const LOOK_AHEAD_SECONDS = 4;
-// How many seconds of "look-behind" are visible below the hit line
+// How many seconds of "look-behind" are visible above the hit line
 const LOOK_BEHIND_SECONDS = 1;
-// Hit line position as a fraction from top (0.8 = 80% down)
-const HIT_LINE_POSITION = 0.8;
+// Hit line position as a fraction from top (0.2 = near top)
+const HIT_LINE_POSITION = 0.2;
 
 /** Format seconds to M:SS */
 function formatTime(seconds: number): string {
@@ -197,7 +197,7 @@ export default function FallingChords({
       }
 
       const hitLineY = HIT_LINE_POSITION * containerHeight;
-      const pixelsPerSecond = hitLineY / LOOK_AHEAD_SECONDS;
+      const pixelsPerSecond = (containerHeight - hitLineY) / LOOK_AHEAD_SECONDS;
 
       // Update each chord block's position
       blockRefsMap.current.forEach((el) => {
@@ -207,22 +207,14 @@ export default function FallingChords({
         const startTime = parseFloat(el.dataset.start ?? "0");
         const endTime = parseFloat(el.dataset.end ?? "0");
 
-        // Position so that the BOTTOM edge of the block aligns with the hit
-        // line when the chord's start time arrives (i.e. the chord is "played"
-        // once it has fully crossed the hit line, not when its top first touches).
-        //
-        // In this coordinate system, earlier times map to lower Y (further down
-        // the screen), and later times map to higher Y (further up). So:
-        //   startEdgeY = the leading/bottom edge (arrives at hit line first)
-        //   endEdgeY   = the trailing/top edge (arrives at hit line last)
-        const startEdgeY = hitLineY - (startTime - smoothTime) * pixelsPerSecond;
-        const endEdgeY = hitLineY - (endTime - smoothTime) * pixelsPerSecond;
-        // startEdgeY > endEdgeY because startTime < endTime
-        const height = Math.max(startEdgeY - endEdgeY, 36);
-        // Position block so its top is at endEdgeY, bottom at startEdgeY.
-        // Shift upward by height so the bottom edge (not top) aligns with the
-        // hit line when the chord's start time arrives.
-        const topY = startEdgeY - height;
+        // Upward lane mapping:
+        // - Future chords are below the hit line
+        // - Past chords are above the hit line
+        // The leading (top) edge reaches the hit line at startTime.
+        const startEdgeY = hitLineY + (startTime - smoothTime) * pixelsPerSecond;
+        const endEdgeY = hitLineY + (endTime - smoothTime) * pixelsPerSecond;
+        const height = Math.max(endEdgeY - startEdgeY, 36);
+        const topY = startEdgeY;
 
         // Use transform for GPU acceleration (no layout thrash)
         el.style.transform = `translateY(${topY}px)`;
@@ -332,7 +324,7 @@ export default function FallingChords({
         </div>
       </div>
 
-      {/* Falling notes lane */}
+      {/* Rising notes lane */}
       <div
         ref={containerRef}
         className="relative flex-1 overflow-hidden bg-zinc-950/80"
@@ -341,9 +333,10 @@ export default function FallingChords({
         <div className="absolute inset-0 pointer-events-none">
           {/* Vertical center line */}
           <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-zinc-800/50" />
-          {/* Horizontal timing guides */}
+          {/* Horizontal timing guides (look-ahead below hit line) */}
           {Array.from({ length: LOOK_AHEAD_SECONDS }, (_, i) => {
-            const y = hitLineY - ((i + 1) / LOOK_AHEAD_SECONDS) * hitLineY;
+            const belowHitLine = containerHeight - hitLineY;
+            const y = hitLineY + ((i + 1) / LOOK_AHEAD_SECONDS) * belowHitLine;
             return (
               <div
                 key={`guide-${i}`}
@@ -373,7 +366,7 @@ export default function FallingChords({
           }}
         />
 
-        {/* Falling chord blocks - positioned by rAF, not React render */}
+        {/* Rising chord blocks - positioned by rAF, not React render */}
         <div ref={laneRef}>
           {visibleChords.map(({ chord, index }) => {
             const isActive = index === activeIndex;
@@ -421,7 +414,7 @@ export default function FallingChords({
         <div
           ref={nowLabelRef}
           className="absolute left-1 z-10 text-[10px] font-mono text-violet-400/60 pointer-events-none"
-          style={{ top: hitLineY + 4 }}
+          style={{ top: Math.max(0, hitLineY - 14) }}
         >
           {formatTime(currentTime)}
         </div>
