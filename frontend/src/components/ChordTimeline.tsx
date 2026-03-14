@@ -2,11 +2,18 @@
 
 import { useMemo } from "react";
 import type { ChordEvent } from "@/lib/api";
+import {
+  getChordDisplayInfo,
+  type ChordDisplayMode,
+  type ChordDisplaySegment,
+} from "@/lib/notation";
 
 interface ChordTimelineProps {
   chords: ChordEvent[];
   currentTime: number;
   durationSeconds: number;
+  displayMode: ChordDisplayMode;
+  keySegments: ChordDisplaySegment[];
   onSeek?: (time: number) => void;
 }
 
@@ -22,6 +29,8 @@ export default function ChordTimeline({
   chords,
   currentTime,
   durationSeconds,
+  displayMode,
+  keySegments,
   onSeek,
 }: ChordTimelineProps) {
   // Find the active chord index using binary search for performance
@@ -51,6 +60,11 @@ export default function ChordTimeline({
     return -1;
   }, [chords, currentTime]);
 
+  const activeDisplay =
+    activeIndex >= 0
+      ? getChordDisplayInfo(chords[activeIndex].chord, displayMode, keySegments, chords[activeIndex].start)
+      : null;
+
   if (chords.length === 0) {
     return (
       <div className="flex h-full items-center justify-center text-stone-200/55">
@@ -67,8 +81,11 @@ export default function ChordTimeline({
           Current Chord
         </p>
         <p className="text-5xl font-bold text-stone-50">
-          {activeIndex >= 0 ? chords[activeIndex].chord : "--"}
+          {activeIndex >= 0 ? activeDisplay?.display ?? chords[activeIndex].chord : "--"}
         </p>
+        {activeDisplay?.keyLabel ? (
+          <p className="mt-1 text-xs text-stone-200/55">Key: {activeDisplay.keyLabel}</p>
+        ) : null}
         <p className="mt-1 text-sm text-stone-200/55">
           {formatTime(currentTime)} / {formatTime(durationSeconds)}
         </p>
@@ -80,6 +97,7 @@ export default function ChordTimeline({
           {chords.map((chord, i) => {
             const isActive = i === activeIndex;
             const isPast = currentTime > chord.end;
+            const display = getChordDisplayInfo(chord.chord, displayMode, keySegments, chord.start);
 
             return (
               <button
@@ -94,6 +112,7 @@ export default function ChordTimeline({
                 }`}
                 aria-current={isActive ? "true" : undefined}
                 aria-label={`${chord.chord} at ${formatTime(chord.start)}`}
+                title={display.keyLabel ? `${display.original} - ${display.keyLabel}` : display.original}
               >
                 <span className="w-12 text-right text-xs text-stone-200/55">
                   {formatTime(chord.start)}
@@ -103,8 +122,11 @@ export default function ChordTimeline({
                     isActive ? "text-amber-50" : "text-stone-100"
                   }`}
                 >
-                  {chord.chord}
+                  {display.display}
                 </span>
+                {display.keyLabel ? (
+                  <span className="text-[11px] text-stone-300/45">{display.keyLabel}</span>
+                ) : null}
                 <span className="ml-auto text-xs text-stone-300/40">
                   {(chord.end - chord.start).toFixed(1)}s
                 </span>

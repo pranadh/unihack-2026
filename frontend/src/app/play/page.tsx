@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef, Suspense } from "react";
+import { useState, useCallback, useEffect, useRef, Suspense, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import YouTubePlayer from "@/components/YouTubePlayer";
@@ -15,6 +15,13 @@ import {
   isInstrument,
   type Instrument,
 } from "@/lib/instruments";
+import {
+  buildChordDisplaySegments,
+  CHORD_DISPLAY_MODE_STORAGE_KEY,
+  DEFAULT_CHORD_DISPLAY_MODE,
+  isChordDisplayMode,
+  type ChordDisplayMode,
+} from "@/lib/notation";
 
 interface PlayData {
   videoId: string;
@@ -38,6 +45,7 @@ type ViewMode = "falling" | "list";
  * which fixes the "chords arrive too late" problem.
  */
 const CHORD_OFFSET_SECONDS = 0.3;
+const EMPTY_CHORDS: ChordEvent[] = [];
 
 function PlaybackContent() {
   const searchParams = useSearchParams();
@@ -51,6 +59,9 @@ function PlaybackContent() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("falling");
   const [instrument, setInstrument] = useState<Instrument>(DEFAULT_INSTRUMENT);
+  const [chordDisplayMode, setChordDisplayMode] = useState<ChordDisplayMode>(
+    DEFAULT_CHORD_DISPLAY_MODE
+  );
 
   useEffect(() => {
     try {
@@ -58,8 +69,15 @@ function PlaybackContent() {
       if (isInstrument(storedInstrument)) {
         setInstrument(storedInstrument);
       }
+
+      const storedChordDisplayMode = window.localStorage.getItem(
+        CHORD_DISPLAY_MODE_STORAGE_KEY
+      );
+      if (isChordDisplayMode(storedChordDisplayMode)) {
+        setChordDisplayMode(storedChordDisplayMode);
+      }
     } catch {
-      // Ignore storage access issues and fall back to default instrument.
+      // Ignore storage access issues and fall back to default display preferences.
     }
 
     try {
@@ -94,6 +112,14 @@ function PlaybackContent() {
       // Ignore storage access issues; instrument choice still works for this session.
     }
   }, [instrument]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CHORD_DISPLAY_MODE_STORAGE_KEY, chordDisplayMode);
+    } catch {
+      // Ignore storage access issues; display choice still works for this session.
+    }
+  }, [chordDisplayMode]);
 
   useEffect(() => {
     if (!playData?.videoId || playData.title) {
@@ -141,6 +167,18 @@ function PlaybackContent() {
   const handleSeek = useCallback((time: number) => {
     playerRef.current?.seekTo(time);
   }, []);
+
+  const playbackChords = useMemo(() => playData?.chords ?? EMPTY_CHORDS, [playData?.chords]);
+  const durationSeconds =
+    playData?.duration ??
+    (playbackChords.length > 0 ? Math.max(...playbackChords.map((c) => c.end)) : 0);
+
+  const displaySegments = useMemo(() => buildChordDisplaySegments(playbackChords), [playbackChords]);
+  const adjustedCurrentTime = currentTime + CHORD_OFFSET_SECONDS;
+  const currentKeyLabel =
+    displaySegments.find(
+      (segment) => adjustedCurrentTime >= segment.start && adjustedCurrentTime < segment.end
+    )?.keyLabel ?? displaySegments[displaySegments.length - 1]?.keyLabel ?? null;
 
   if (loading) {
     return (
@@ -190,12 +228,6 @@ function PlaybackContent() {
     );
   }
 
-  const durationSeconds =
-    playData.duration ??
-    (playData.chords.length > 0
-      ? Math.max(...playData.chords.map((c) => c.end))
-      : 0);
-
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col bg-[#0d0b12]">
       {/* Title bar */}
@@ -211,10 +243,42 @@ function PlaybackContent() {
                   {Math.round(playData.bpm)} BPM{playData.variable_tempo ? " (variable)" : ""}
                 </span>
               ) : null}
+              {currentKeyLabel ? (
+                <span className="rounded-full border border-white/10 bg-white/6 px-2 py-0.5 text-xs font-medium text-stone-100">
+                  Key: {currentKeyLabel}
+                </span>
+              ) : null}
             </div>
           </div>
 
           <div className="mx-4 flex flex-wrap items-center justify-end gap-2">
+            <div className="flex items-center gap-1 rounded-xl bg-white/5 p-1">
+              <button
+                onClick={() => setChordDisplayMode("names")}
+                className={`min-h-[36px] rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  chordDisplayMode === "names"
+                    ? "bg-[#7054b8] text-white"
+                    : "text-stone-200/70 hover:text-white"
+                }`}
+                aria-label="Show actual chord names"
+                aria-pressed={chordDisplayMode === "names"}
+              >
+                Chords
+              </button>
+              <button
+                onClick={() => setChordDisplayMode("roman")}
+                className={`min-h-[36px] rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  chordDisplayMode === "roman"
+                    ? "bg-[#7054b8] text-white"
+                    : "text-stone-200/70 hover:text-white"
+                }`}
+                aria-label="Show roman numeral notation"
+                aria-pressed={chordDisplayMode === "roman"}
+              >
+                I II III
+              </button>
+            </div>
+
             <div className="flex items-center gap-1 rounded-xl bg-white/5 p-1">
               <button
                 onClick={() => setInstrument("guitar")}
@@ -294,16 +358,20 @@ function PlaybackContent() {
           {viewMode === "falling" ? (
             <FallingChords
               chords={playData.chords}
-              currentTime={currentTime + CHORD_OFFSET_SECONDS}
+              currentTime={adjustedCurrentTime}
               durationSeconds={durationSeconds}
               instrument={instrument}
+              displayMode={chordDisplayMode}
+              keySegments={displaySegments}
               onSeek={handleSeek}
             />
           ) : (
-            <ChordTimeline
-              chords={playData.chords}
-              currentTime={currentTime + CHORD_OFFSET_SECONDS}
-              durationSeconds={durationSeconds}
+              <ChordTimeline
+                chords={playData.chords}
+                currentTime={adjustedCurrentTime}
+                durationSeconds={durationSeconds}
+                displayMode={chordDisplayMode}
+                keySegments={displaySegments}
               onSeek={handleSeek}
             />
           )}

@@ -3,6 +3,11 @@
 import { useMemo, useRef, useEffect, useCallback, useState } from "react";
 import type { ChordEvent } from "@/lib/api";
 import type { Instrument } from "@/lib/instruments";
+import {
+  getChordDisplayInfo,
+  type ChordDisplayMode,
+  type ChordDisplaySegment,
+} from "@/lib/notation";
 import ChordDiagram from "./ChordDiagram";
 
 /**
@@ -23,6 +28,8 @@ interface FallingChordsProps {
   currentTime: number;
   durationSeconds: number;
   instrument: Instrument;
+  displayMode: ChordDisplayMode;
+  keySegments: ChordDisplaySegment[];
   onSeek?: (time: number) => void;
 }
 
@@ -73,6 +80,8 @@ export default function FallingChords({
   currentTime,
   durationSeconds,
   instrument,
+  displayMode,
+  keySegments,
   onSeek,
 }: FallingChordsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -251,6 +260,9 @@ export default function FallingChords({
 
   // Find unique chord names for the upcoming section (for "next up" display)
   const activeChord = activeIndex >= 0 ? chords[activeIndex] : null;
+  const activeDisplay = activeChord
+    ? getChordDisplayInfo(activeChord.chord, displayMode, keySegments, activeChord.start)
+    : null;
 
   // Next chord that isn't "N"
   const nextChord = useMemo(() => {
@@ -266,6 +278,9 @@ export default function FallingChords({
     }
     return null;
   }, [chords, activeIndex, currentTime]);
+  const nextDisplay = nextChord
+    ? getChordDisplayInfo(nextChord.chord, displayMode, keySegments, nextChord.start)
+    : null;
 
   // Callback to register block refs
   const setBlockRef = useCallback(
@@ -297,8 +312,11 @@ export default function FallingChords({
           <div className="flex min-w-0 flex-1 max-w-[260px] flex-col items-center rounded-[1.25rem] border border-white/8 bg-[#1a1521] px-2 py-2">
             <p className="text-[10px] uppercase tracking-wider text-stone-200/70">Now</p>
             <p className="truncate text-3xl font-bold text-stone-50">
-              {activeChord && activeChord.chord !== "N" ? activeChord.chord : "--"}
+              {activeChord && activeChord.chord !== "N" ? activeDisplay?.display ?? activeChord.chord : "--"}
             </p>
+            {activeDisplay?.keyLabel ? (
+              <p className="mt-1 text-[11px] text-stone-200/55">{activeDisplay.keyLabel}</p>
+            ) : null}
             {activeChord && activeChord.chord !== "N" ? (
               <ChordDiagram
                 chord={activeChord.chord}
@@ -315,8 +333,11 @@ export default function FallingChords({
           <div className="flex min-w-0 flex-1 max-w-[260px] flex-col items-center rounded-[1.25rem] border border-white/8 bg-[#15111b] px-2 py-2">
             <p className="text-[10px] uppercase tracking-wider text-stone-200/60">Next</p>
             <p className="truncate text-3xl font-bold text-stone-100">
-              {nextChord ? nextChord.chord : "--"}
+              {nextChord ? nextDisplay?.display ?? nextChord.chord : "--"}
             </p>
+            {nextDisplay?.keyLabel ? (
+              <p className="mt-1 text-[11px] text-stone-200/50">{nextDisplay.keyLabel}</p>
+            ) : null}
             {nextChord ? (
               <ChordDiagram
                 chord={nextChord.chord}
@@ -394,6 +415,7 @@ export default function FallingChords({
             const bgOpacity = isActive ? 0.35 : isPast ? 0.1 : 0.25;
             const blockKey = `${index}-${chord.start}`;
             const nextVisible = visibleChords[visibleIdx + 1];
+            const display = getChordDisplayInfo(chord.chord, displayMode, keySegments, chord.start);
 
             return (
               <button
@@ -416,12 +438,13 @@ export default function FallingChords({
                 }}
                 onClick={() => onSeek?.(chord.start)}
                 aria-label={`${chord.chord} at ${formatTime(chord.start)}`}
+                title={display.keyLabel ? `${display.original} - ${display.keyLabel}` : display.original}
               >
                 <span
                   className="text-base font-bold"
                   style={{ color: isActive ? "#ffffff" : colors.text }}
                 >
-                  {chord.chord}
+                  {display.display}
                 </span>
                 <span className="ml-2 text-[11px] text-stone-200/45">
                   {formatTime(chord.start)}
