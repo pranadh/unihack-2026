@@ -22,6 +22,17 @@ interface PlayData {
 
 type ViewMode = "falling" | "list";
 
+/**
+ * Fixed offset (in seconds) added to the YouTube playback time before passing
+ * it to chord display components. This compensates for the inherent latency
+ * between YouTube's reported `getCurrentTime()` and what the user actually
+ * hears/sees (IFrame API polling delay + communication overhead).
+ *
+ * A positive value makes chords appear *earlier* relative to the video,
+ * which fixes the "chords arrive too late" problem.
+ */
+const CHORD_OFFSET_SECONDS = 0.3;
+
 function PlaybackContent() {
   const searchParams = useSearchParams();
   const videoId = searchParams.get("v");
@@ -195,14 +206,14 @@ function PlaybackContent() {
           {viewMode === "falling" ? (
             <FallingChords
               chords={playData.chords}
-              currentTime={currentTime}
+              currentTime={currentTime + CHORD_OFFSET_SECONDS}
               durationSeconds={durationSeconds}
               onSeek={handleSeek}
             />
           ) : (
             <ChordTimeline
               chords={playData.chords}
-              currentTime={currentTime}
+              currentTime={currentTime + CHORD_OFFSET_SECONDS}
               durationSeconds={durationSeconds}
               onSeek={handleSeek}
             />
