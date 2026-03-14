@@ -4,6 +4,7 @@ import { checkYtDlp } from "./lib/youtube-dl.js";
 import { requestRoutes } from "./routes/requests.js";
 import { historyRoutes } from "./routes/history.js";
 import { adminRoutes } from "./routes/admin.js";
+import { getRequiredEnv } from "./lib/env.js";
 
 const port = Number(process.env.PORT ?? 4000);
 const host = process.env.HOST ?? "0.0.0.0";
@@ -11,12 +12,16 @@ const host = process.env.HOST ?? "0.0.0.0";
 const app = Fastify({
   logger: true,
 });
+const env = getRequiredEnv();
+const allowedOrigins = new Set(env.ALLOWED_ORIGINS);
 
 // ── CORS ────────────────────────────────────────────────────────────────────
 // Allow frontend origins (Vercel + local dev)
 app.addHook("onRequest", async (request, reply) => {
-  const origin = request.headers.origin ?? "*";
-  reply.header("Access-Control-Allow-Origin", origin);
+  const origin = request.headers.origin;
+  if (origin && allowedOrigins.has(origin)) {
+    reply.header("Access-Control-Allow-Origin", origin);
+  }
   reply.header(
     "Access-Control-Allow-Methods",
     "GET, POST, PUT, DELETE, OPTIONS"
@@ -25,6 +30,9 @@ app.addHook("onRequest", async (request, reply) => {
     "Access-Control-Allow-Headers",
     "Content-Type, Authorization"
   );
+  if (origin) {
+    reply.header("Vary", "Origin");
+  }
   reply.header("Access-Control-Max-Age", "86400");
 
   if (request.method === "OPTIONS") {

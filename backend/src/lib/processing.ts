@@ -5,20 +5,14 @@
  *   queued -> processing -> complete | failed
  *
  * Processing pipeline:
- *   1. Download YouTube audio to temp file via yt-dlp
- *   2. Upload audio file to ChordMini API for chord recognition
- *   3. Store chord timeline + events in PostgreSQL
- *   4. Clean up temp files
+ *   1. Run backend Python pipeline (download/refine/chord detection)
+ *   2. Store chord timeline + events in PostgreSQL
  *
  * Processing is done in-process (no external queue for MVP).
  */
 
 import { prisma } from "./prisma.js";
-import { recognizeChordsFromFile } from "./chordmini.js";
-import {
-  downloadYouTubeAudio,
-  cleanupTempDir,
-} from "./youtube-dl.js";
+import { runPythonPipeline } from "./python-pipeline.js";
 import { extractYouTubeVideoId } from "./youtube.js";
 import type { SongRequest, ChordTimeline } from "@prisma/client";
 
@@ -73,10 +67,8 @@ export async function createSongRequest(
 
 /**
  * Process a song request:
- *   1. Download YouTube audio via yt-dlp
- *   2. Upload to ChordMini for chord recognition
- *   3. Store chord timeline in database
- *   4. Clean up temp files
+ *   1. Run backend Python pipeline
+ *   2. Store chord timeline in database
  */
 export async function processRequest(
   requestId: string
@@ -94,41 +86,27 @@ export async function processRequest(
     "Chord extraction started"
   );
 
-  let tempDir: string | null = null;
-
   try {
-    // Step 1: Download YouTube audio
+    // Step 1: Run backend Python pipeline
     await logSystem(
       requestId,
       "info",
-      "DOWNLOAD_START",
-      `Downloading audio from ${request.youtubeUrl}`
+      "PIPELINE_START",
+      `Starting Python pipeline for ${request.youtubeUrl}`
     );
 
-    const download = await downloadYouTubeAudio(request.youtubeUrl);
-    tempDir = download.tempDir;
+    const result = await runPythonPipeline(requestId, request.youtubeUrl);
 
     await logSystem(
       requestId,
       "info",
-      "DOWNLOAD_COMPLETE",
-      `Audio downloaded: ${download.title ?? "unknown title"}, ${download.duration ? `${download.duration.toFixed(1)}s` : "unknown duration"}`
+      "PIPELINE_COMPLETE",
+      `Pipeline returned ${result.chords.length} chord events${result.bpm !== undefined ? ` and BPM ${result.bpm.toFixed(2)}` : ""}`
     );
-
-    // Step 2: Upload to ChordMini for chord recognition
-    await logSystem(
-      requestId,
-      "info",
-      "CHORDMINI_START",
-      "Sending audio to ChordMini API for chord recognition"
-    );
-
-    const result = await recognizeChordsFromFile(download.filePath);
 
     // Calculate duration from chord events if not provided by API
     const duration =
       result.duration ??
-      download.duration ??
       (result.chords.length > 0
         ? Math.max(...result.chords.map((c) => c.end))
         : 0);
@@ -189,11 +167,6 @@ export async function processRequest(
     await logSystem(requestId, "error", "PROCESSING_FAILED", errorMessage);
 
     return { request, timeline: null, error: errorMessage };
-  } finally {
-    // Step 4: Always clean up temp files
-    if (tempDir) {
-      await cleanupTempDir(tempDir);
-    }
   }
 }
 

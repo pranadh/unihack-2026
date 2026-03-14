@@ -1,0 +1,5 @@
+yt-dlp>=2026.1.0
+requests>=2.32.0
+librosa>=0.10.2
+numpy>=1.26.0
+soundfile>=0.12.1
