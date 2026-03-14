@@ -33,6 +33,14 @@ export interface VideoMetaResult {
   title: string;
 }
 
+export interface YouTubeSearchResult {
+  videoId: string;
+  title: string;
+  channelTitle: string;
+  thumbnailUrl: string | null;
+  youtubeUrl: string;
+}
+
 // ── API Methods ─────────────────────────────────────────────────────────────
 
 /**
@@ -91,4 +99,29 @@ export async function fetchVideoTitle(videoId: string): Promise<string> {
 
   const data = (await res.json()) as VideoMetaResult;
   return data.title;
+}
+
+export async function searchYouTubeVideos(
+  query: string,
+  signal?: AbortSignal
+): Promise<YouTubeSearchResult[]> {
+  const res = await fetch(
+    `/api/youtube-search?q=${encodeURIComponent(query)}&limit=8`,
+    {
+      method: "GET",
+      cache: "no-store",
+      signal,
+    }
+  );
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(
+      (body as { error?: string }).error ?? "YouTube search failed",
+      res.status
+    );
+  }
+
+  const data = (await res.json()) as { results?: YouTubeSearchResult[] };
+  return data.results ?? [];
 }

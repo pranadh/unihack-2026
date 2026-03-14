@@ -2,9 +2,11 @@ export type AppEnv = {
   DATABASE_URL: string;
   CHORDMINI_API_BASE_URL: string;
   CHORDMINI_API_KEY: string;
+  YOUTUBE_DATA_API_KEY: string;
   REDIS_URL: string;
   ALLOWED_ORIGINS: string[];
   REQUEST_RATE_LIMIT_PER_MINUTE: number;
+  YOUTUBE_SEARCH_RATE_LIMIT_PER_MINUTE: number;
   PYTHON_BIN: string;
   PYTHON_PIPELINE_SCRIPT: string;
   YTDLP_JS_RUNTIMES: string;
@@ -21,6 +23,7 @@ export const getEnv = (): AppEnv => {
   const CHORDMINI_API_BASE_URL =
     process.env.CHORDMINI_API_BASE_URL ?? "http://127.0.0.1:5001";
   const CHORDMINI_API_KEY = process.env.CHORDMINI_API_KEY ?? "";
+  const YOUTUBE_DATA_API_KEY = process.env.YOUTUBE_DATA_API_KEY ?? "";
   const REDIS_URL = process.env.REDIS_URL ?? "";
   const ALLOWED_ORIGINS = (
     process.env.ALLOWED_ORIGINS ?? "http://localhost:3000,http://127.0.0.1:3000"
@@ -30,6 +33,9 @@ export const getEnv = (): AppEnv => {
     .filter((origin) => origin.length > 0);
   const REQUEST_RATE_LIMIT_PER_MINUTE = Number(
     process.env.REQUEST_RATE_LIMIT_PER_MINUTE ?? 30
+  );
+  const YOUTUBE_SEARCH_RATE_LIMIT_PER_MINUTE = Number(
+    process.env.YOUTUBE_SEARCH_RATE_LIMIT_PER_MINUTE ?? 60
   );
   const PYTHON_BIN = process.env.PYTHON_BIN ?? "python3";
   const PYTHON_PIPELINE_SCRIPT =
@@ -52,9 +58,11 @@ export const getEnv = (): AppEnv => {
     DATABASE_URL,
     CHORDMINI_API_BASE_URL,
     CHORDMINI_API_KEY,
+    YOUTUBE_DATA_API_KEY,
     REDIS_URL,
     ALLOWED_ORIGINS,
     REQUEST_RATE_LIMIT_PER_MINUTE,
+    YOUTUBE_SEARCH_RATE_LIMIT_PER_MINUTE,
     PYTHON_BIN,
     PYTHON_PIPELINE_SCRIPT,
     YTDLP_JS_RUNTIMES,

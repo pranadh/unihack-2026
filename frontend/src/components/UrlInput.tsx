@@ -1,6 +1,15 @@
 "use client";
 
-import { useState, useCallback, type FormEvent } from "react";
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
+import Image from "next/image";
+import { searchYouTubeVideos, type YouTubeSearchResult } from "@/lib/api";
 
 interface UrlInputProps {
   onSubmit: (url: string) => void;
@@ -11,28 +20,149 @@ const YOUTUBE_REGEX =
   /^(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})(?:[&?#].*)?$/;
 
 export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
-  const [url, setUrl] = useState("");
+  const [inputValue, setInputValue] = useState("");
   const [error, setError] = useState("");
+  const [searchError, setSearchError] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [results, setResults] = useState<YouTubeSearchResult[]>([]);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const validate = useCallback((value: string): boolean => {
+  const validateUrl = useCallback((value: string): boolean => {
     if (!value.trim()) {
-      setError("Please enter a YouTube URL");
+      setError("Please enter a YouTube URL or a search query");
       return false;
     }
     if (!YOUTUBE_REGEX.test(value.trim())) {
-      setError(
-        "Please enter a valid YouTube URL (e.g. youtube.com/watch?v=... or youtu.be/...)"
-      );
       return false;
     }
     setError("");
     return true;
   }, []);
 
+  useEffect(() => {
+    const value = inputValue.trim();
+
+    if (!value || YOUTUBE_REGEX.test(value) || value.length < 2) {
+      abortRef.current?.abort();
+      abortRef.current = null;
+      setResults([]);
+      setSearchError("");
+      setIsSearching(false);
+      setActiveIndex(-1);
+      return;
+    }
+
+    const controller = new AbortController();
+    abortRef.current?.abort();
+    abortRef.current = controller;
+
+    const timer = setTimeout(async () => {
+      try {
+        setIsSearching(true);
+        setSearchError("");
+        const items = await searchYouTubeVideos(value, controller.signal);
+        if (controller.signal.aborted) {
+          return;
+        }
+        setResults(items);
+        setActiveIndex(items.length > 0 ? 0 : -1);
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          setResults([]);
+          setActiveIndex(-1);
+          setSearchError(err instanceof Error ? err.message : "Search failed");
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsSearching(false);
+        }
+      }
+    }, 300);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [inputValue]);
+
+  const submitYoutubeUrl = useCallback(
+    (url: string) => {
+      setError("");
+      setSearchError("");
+      setResults([]);
+      setActiveIndex(-1);
+      onSubmit(url);
+    },
+    [onSubmit]
+  );
+
+  const handleSelectResult = useCallback(
+    (result: YouTubeSearchResult) => {
+      setInputValue(result.title);
+      submitYoutubeUrl(result.youtubeUrl);
+    },
+    [submitYoutubeUrl]
+  );
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (validate(url)) {
-      onSubmit(url.trim());
+
+    const value = inputValue.trim();
+    if (!value) {
+      setError("Please enter a YouTube URL or a search query");
+      return;
+    }
+
+    if (validateUrl(value)) {
+      submitYoutubeUrl(value);
+      return;
+    }
+
+    if (isSearching) {
+      setError("Searching videos... Please wait a moment.");
+      return;
+    }
+
+    const selected =
+      activeIndex >= 0 && activeIndex < results.length
+        ? results[activeIndex]
+        : results[0];
+
+    if (selected) {
+      handleSelectResult(selected);
+      return;
+    }
+
+    setError("No matching video selected. Keep typing or paste a YouTube URL.");
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (results.length === 0) {
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveIndex((prev) => (prev + 1) % results.length);
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex((prev) => (prev <= 0 ? results.length - 1 : prev - 1));
+      return;
+    }
+
+    if (event.key === "Enter" && !YOUTUBE_REGEX.test(inputValue.trim())) {
+      event.preventDefault();
+      const selected =
+        activeIndex >= 0 && activeIndex < results.length
+          ? results[activeIndex]
+          : results[0];
+      if (selected) {
+        handleSelectResult(selected);
+      }
     }
   };
 
@@ -40,22 +170,25 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
     <form onSubmit={handleSubmit} className="w-full max-w-2xl">
       <div className="flex flex-col gap-3 rounded-[1.75rem] border border-white/10 bg-[linear-gradient(150deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-4 shadow-[0_20px_70px_rgba(0,0,0,0.22)] backdrop-blur sm:p-5">
         <label htmlFor="youtube-url" className="text-sm font-medium text-stone-100/85">
-          YouTube URL
+          YouTube URL or Song Search
         </label>
         <div className="flex flex-col gap-2 sm:flex-row">
           <input
             id="youtube-url"
             type="url"
-            value={url}
+            value={inputValue}
             onChange={(e) => {
-              setUrl(e.target.value);
-              if (error) validate(e.target.value);
+              setInputValue(e.target.value);
+              if (error) setError("");
+              if (searchError) setSearchError("");
             }}
-            placeholder="https://youtube.com/watch?v=..."
+            onKeyDown={handleKeyDown}
+            placeholder="Paste URL or type song title..."
             className="flex-1 rounded-xl border border-amber-100/15 bg-[#241a24]/70 px-4 py-3 text-base text-white placeholder-stone-300/40 outline-none transition-colors focus:border-amber-300/50 focus:ring-1 focus:ring-amber-300/45"
             disabled={isLoading}
-            aria-describedby={error ? "url-error" : undefined}
-            aria-invalid={error ? "true" : "false"}
+            aria-describedby={error || searchError ? "url-error" : undefined}
+            aria-invalid={error || searchError ? "true" : "false"}
+            autoComplete="off"
           />
           <button
             type="submit"
@@ -90,9 +223,60 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
             )}
           </button>
         </div>
-        {error && (
+
+        {isSearching && inputValue.trim().length >= 2 && !YOUTUBE_REGEX.test(inputValue.trim()) && (
+          <p className="text-sm text-stone-200/85">Searching YouTube...</p>
+        )}
+
+        {!isSearching && results.length > 0 && !YOUTUBE_REGEX.test(inputValue.trim()) && (
+          <ul
+            className="max-h-80 overflow-y-auto rounded-xl border border-white/10 bg-[#17121f]/95"
+            role="listbox"
+            aria-label="YouTube search suggestions"
+          >
+            {results.map((result, index) => (
+              <li key={result.videoId}>
+                <button
+                  type="button"
+                  className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors ${
+                    index === activeIndex
+                      ? "bg-amber-200/20"
+                      : "hover:bg-white/5"
+                  }`}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    handleSelectResult(result);
+                  }}
+                >
+                  {result.thumbnailUrl ? (
+                    <Image
+                      src={result.thumbnailUrl}
+                      alt=""
+                      width={80}
+                      height={48}
+                      className="h-12 w-20 rounded-md object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="h-12 w-20 rounded-md bg-white/10" />
+                  )}
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-white">
+                      {result.title}
+                    </span>
+                    <span className="block truncate text-xs text-stone-300/80">
+                      {result.channelTitle}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {(error || searchError) && (
           <p id="url-error" className="text-sm text-rose-100" role="alert">
-            {error}
+            {error || searchError}
           </p>
         )}
       </div>

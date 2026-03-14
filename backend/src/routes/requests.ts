@@ -9,6 +9,7 @@
 
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
+import { getRequiredEnv } from "../lib/env.js";
 import { extractYouTubeVideoId, isValidYouTubeUrl } from "../lib/youtube.js";
 import {
   createSongRequest,
@@ -17,7 +18,105 @@ import {
 
 const YOUTUBE_VIDEO_ID_RE = /^[\w-]{11}$/;
 
+interface YouTubeSearchApiItem {
+  id?: { videoId?: string };
+  snippet?: {
+    title?: string;
+    channelTitle?: string;
+    thumbnails?: {
+      medium?: { url?: string };
+      default?: { url?: string };
+    };
+  };
+}
+
+interface YouTubeSearchApiResponse {
+  items?: YouTubeSearchApiItem[];
+}
+
 export async function requestRoutes(app: FastifyInstance): Promise<void> {
+  // GET /api/youtube/search - Search YouTube videos by query
+  app.get<{
+    Querystring: { q?: string; limit?: string };
+  }>("/api/youtube/search", async (request, reply) => {
+    const env = getRequiredEnv();
+    if (!env.YOUTUBE_DATA_API_KEY) {
+      return reply.status(503).send({
+        error: "YouTube search is not configured on the server.",
+      });
+    }
+
+    const q = request.query.q?.trim() ?? "";
+    const limitRaw = Number(request.query.limit ?? 8);
+    const limit = Number.isFinite(limitRaw)
+      ? Math.min(Math.max(Math.floor(limitRaw), 1), 10)
+      : 8;
+
+    if (q.length < 2 || q.length > 100) {
+      return reply.status(400).send({
+        error: "Query must be between 2 and 100 characters.",
+      });
+    }
+
+    const url = new URL("https://www.googleapis.com/youtube/v3/search");
+    url.searchParams.set("part", "snippet");
+    url.searchParams.set("type", "video");
+    url.searchParams.set("videoEmbeddable", "true");
+    url.searchParams.set("maxResults", String(limit));
+    url.searchParams.set("q", q);
+    url.searchParams.set("key", env.YOUTUBE_DATA_API_KEY);
+
+    try {
+      const providerRes = await fetch(url, {
+        method: "GET",
+        signal: AbortSignal.timeout(10_000),
+      });
+
+      if (!providerRes.ok) {
+        const body = await providerRes.text().catch(() => "");
+        request.log.error(
+          { statusCode: providerRes.status, body },
+          "YouTube search provider request failed"
+        );
+        return reply.status(502).send({
+          error: "YouTube search provider failed.",
+        });
+      }
+
+      const json = (await providerRes.json()) as YouTubeSearchApiResponse;
+      const results = (json.items ?? [])
+        .map((item) => {
+          const videoId = item.id?.videoId?.trim();
+          if (!videoId || !YOUTUBE_VIDEO_ID_RE.test(videoId)) {
+            return null;
+          }
+
+          const title = item.snippet?.title?.trim() || "Untitled";
+          const channelTitle =
+            item.snippet?.channelTitle?.trim() || "Unknown channel";
+          const thumbnailUrl =
+            item.snippet?.thumbnails?.medium?.url ??
+            item.snippet?.thumbnails?.default?.url ??
+            null;
+
+          return {
+            videoId,
+            title,
+            channelTitle,
+            thumbnailUrl,
+            youtubeUrl: `https://www.youtube.com/watch?v=${videoId}`,
+          };
+        })
+        .filter((item): item is NonNullable<typeof item> => item !== null);
+
+      return reply.send({ query: q, results });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      request.log.error({ err }, "YouTube search request failed");
+      return reply.status(500).send({ error: message });
+    }
+  });
+
   // GET /api/requests/lookup - Check if a processed timeline already exists
   app.get<{
     Querystring: { url?: string; videoId?: string };

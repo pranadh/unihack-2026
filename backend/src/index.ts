@@ -47,34 +47,48 @@ app.addHook("onRequest", async (request, reply) => {
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = Number(process.env.REQUEST_RATE_LIMIT_PER_MINUTE ?? 30);
+const SEARCH_RATE_LIMIT_MAX = Number(
+  process.env.YOUTUBE_SEARCH_RATE_LIMIT_PER_MINUTE ?? 60
+);
 
 app.addHook("onRequest", async (request, reply) => {
-  if (request.method !== "POST" || request.url !== "/api/requests") return;
+  const isCreateRequestRoute =
+    request.method === "POST" && request.url === "/api/requests";
+  const isYouTubeSearchRoute =
+    request.method === "GET" && request.url.startsWith("/api/youtube/search");
+
+  if (!isCreateRequestRoute && !isYouTubeSearchRoute) return;
+
+  const maxForRoute = isCreateRequestRoute
+    ? RATE_LIMIT_MAX
+    : SEARCH_RATE_LIMIT_MAX;
 
   const ip =
     (request.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ??
     request.ip;
   const now = Date.now();
 
-  let entry = rateLimitMap.get(ip);
+  const bucketKey = `${isCreateRequestRoute ? "create" : "search"}:${ip}`;
+
+  let entry = rateLimitMap.get(bucketKey);
   if (!entry || now > entry.resetAt) {
     entry = { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
-    rateLimitMap.set(ip, entry);
+    rateLimitMap.set(bucketKey, entry);
   }
 
   entry.count++;
 
-  reply.header("X-RateLimit-Limit", String(RATE_LIMIT_MAX));
+  reply.header("X-RateLimit-Limit", String(maxForRoute));
   reply.header(
     "X-RateLimit-Remaining",
-    String(Math.max(0, RATE_LIMIT_MAX - entry.count))
+    String(Math.max(0, maxForRoute - entry.count))
   );
   reply.header(
     "X-RateLimit-Reset",
     String(Math.ceil(entry.resetAt / 1000))
   );
 
-  if (entry.count > RATE_LIMIT_MAX) {
+  if (entry.count > maxForRoute) {
     return reply.status(429).send({
       error: "Too many requests. Please wait before submitting again.",
     });
@@ -84,8 +98,8 @@ app.addHook("onRequest", async (request, reply) => {
 // Periodic cleanup of stale rate-limit entries
 setInterval(() => {
   const now = Date.now();
-  for (const [ip, entry] of rateLimitMap) {
-    if (now > entry.resetAt) rateLimitMap.delete(ip);
+  for (const [bucket, entry] of rateLimitMap) {
+    if (now > entry.resetAt) rateLimitMap.delete(bucket);
   }
 }, 60_000).unref();
 
