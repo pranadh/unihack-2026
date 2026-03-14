@@ -202,6 +202,9 @@ export default function FallingChords({
         // Parse the data attributes for start/end time
         const startTime = parseFloat(el.dataset.start ?? "0");
         const endTime = parseFloat(el.dataset.end ?? "0");
+        const nextStartRaw = el.dataset.nextStart;
+        const nextStartTime =
+          typeof nextStartRaw === "string" ? parseFloat(nextStartRaw) : Number.NaN;
 
         // Upward lane mapping:
         // - Future chords are below the hit line
@@ -209,7 +212,17 @@ export default function FallingChords({
         // The leading (top) edge reaches the hit line at startTime.
         const startEdgeY = hitLineY + (startTime - smoothTime) * pixelsPerSecond;
         const endEdgeY = hitLineY + (endTime - smoothTime) * pixelsPerSecond;
-        const height = Math.max(endEdgeY - startEdgeY, 36);
+        const naturalHeight = Math.max(endEdgeY - startEdgeY, 8);
+
+        // Prevent visual overlap with the next chord block in time order.
+        // Keep a small 2px gap so adjacent blocks remain distinguishable.
+        let maxHeight = Number.POSITIVE_INFINITY;
+        if (Number.isFinite(nextStartTime)) {
+          const nextStartY = hitLineY + (nextStartTime - smoothTime) * pixelsPerSecond;
+          maxHeight = Math.max(6, nextStartY - startEdgeY - 2);
+        }
+
+        const height = Math.min(naturalHeight, maxHeight);
         const topY = startEdgeY;
 
         // Use transform for GPU acceleration (no layout thrash)
@@ -284,9 +297,9 @@ export default function FallingChords({
               {activeChord && activeChord.chord !== "N" ? activeChord.chord : "--"}
             </p>
             {activeChord && activeChord.chord !== "N" ? (
-              <ChordDiagram chord={activeChord.chord} size={112} />
+              <ChordDiagram chord={activeChord.chord} size={128} />
             ) : (
-              <div className="flex h-[140px] w-[112px] items-center justify-center">
+              <div className="flex h-[160px] w-[128px] items-center justify-center">
                 <span className="text-2xl text-stone-200/40">--</span>
               </div>
             )}
@@ -298,9 +311,9 @@ export default function FallingChords({
               {nextChord ? nextChord.chord : "--"}
             </p>
             {nextChord ? (
-              <ChordDiagram chord={nextChord.chord} size={100} />
+              <ChordDiagram chord={nextChord.chord} size={116} />
             ) : (
-              <div className="flex h-[125px] w-[100px] items-center justify-center">
+              <div className="flex h-[145px] w-[116px] items-center justify-center">
                 <span className="text-2xl text-stone-200/35">--</span>
               </div>
             )}
@@ -363,12 +376,13 @@ export default function FallingChords({
 
         {/* Rising chord blocks - positioned by rAF, not React render */}
         <div ref={laneRef}>
-          {visibleChords.map(({ chord, index }) => {
+          {visibleChords.map(({ chord, index }, visibleIdx) => {
             const isActive = index === activeIndex;
             const isPast = chord.end < currentTime;
             const colors = chordColors(chord.chord);
             const bgOpacity = isActive ? 0.35 : isPast ? 0.1 : 0.25;
             const blockKey = `${index}-${chord.start}`;
+            const nextVisible = visibleChords[visibleIdx + 1];
 
             return (
               <button
@@ -376,7 +390,8 @@ export default function FallingChords({
                 ref={setBlockRef(blockKey)}
                 data-start={chord.start}
                 data-end={chord.end}
-                className={`absolute left-2 right-2 z-20 flex items-center justify-center rounded-lg border-l-4 will-change-transform ${
+                data-next-start={nextVisible?.chord.start}
+                className={`absolute left-2 right-2 z-20 flex items-center justify-center overflow-hidden rounded-lg border-l-4 will-change-transform ${
                   isActive
                     ? "ring-2 ring-white/35 shadow-lg shadow-white/5"
                     : isPast

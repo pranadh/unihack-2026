@@ -308,10 +308,10 @@ export default function ChordDiagram({ chord, size = 120 }: ChordDiagramProps) {
   }
 
   // SVG coordinate system
-  const viewW = 110;
+  const viewW = 128;
   const viewH = 140;
-  const padL = 20; // left pad for fret number
-  const padR = 10;
+  const padL = 24; // symmetric side padding keeps fretboard centered
+  const padR = 24;
   const padT = 22; // top pad for open/mute indicators
   const padB = 10;
   const gridW = viewW - padL - padR; // 80
@@ -343,6 +343,8 @@ export default function ChordDiagram({ chord, size = 120 }: ChordDiagramProps) {
       viewBox={`0 0 ${viewW} ${viewH}`}
       width={size}
       height={size * (viewH / viewW)}
+      overflow="visible"
+      style={{ overflow: "visible" }}
       role="img"
       aria-label={`${chord} guitar chord diagram`}
     >
@@ -354,29 +356,19 @@ export default function ChordDiagram({ chord, size = 120 }: ChordDiagramProps) {
           x2={padL + gridW}
           y2={padT}
           stroke="#d4d4d8"
-          strokeWidth={3}
+          strokeWidth={1}
         />
       ) : (
         <>
-          <rect
-            x={1}
-            y={padT + fretSpacing / 2 - 8}
-            width={16}
-            height={14}
-            rx={3}
-            fill="#27272a"
-            stroke="#71717a"
-            strokeWidth={1}
-          />
           <text
-            x={9}
-            y={padT + fretSpacing / 2 + 2}
-            textAnchor="middle"
-            fontSize={9}
-            fontWeight={700}
-            fill="#f4f4f5"
+            x={-2}
+            y={padT + fretSpacing / 2 + 3.5}
+            textAnchor="start"
+            fontSize={12}
+            fontWeight={800}
+            fill="#fafafa"
           >
-            {displayBaseFret}
+            {displayBaseFret}fr
           </text>
         </>
       )}
