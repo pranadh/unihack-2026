@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
@@ -12,13 +13,20 @@ export default function Navbar() {
   const pathname = usePathname();
 
   return (
-    <nav className="border-b border-zinc-800 bg-zinc-950">
+    <nav className="border-b border-[#2a3fb0]" style={{ backgroundColor: "#324CCA" }}>
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
         <Link
           href="/"
-          className="text-lg font-bold text-white transition-colors hover:text-violet-400"
+          className="flex items-center transition-opacity hover:opacity-80"
         >
-          Karachordy
+          <Image
+            src="/karachordy-logo-nobg.png"
+            alt="Karachordy"
+            width={160}
+            height={40}
+            className="h-9 w-auto object-contain"
+            priority
+          />
         </Link>
 
         <div className="flex items-center gap-1">
@@ -34,8 +42,8 @@ export default function Navbar() {
                 href={item.href}
                 className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                   isActive
-                    ? "bg-zinc-800 text-white"
-                    : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
+                    ? "bg-white/20 text-white"
+                    : "text-white/70 hover:bg-white/10 hover:text-white"
                 }`}
                 aria-current={isActive ? "page" : undefined}
               >

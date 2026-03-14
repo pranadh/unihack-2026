@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import UrlInput from "@/components/UrlInput";
 import { recognizeChords } from "@/lib/api";
 
@@ -84,10 +85,15 @@ export default function Home() {
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-center bg-zinc-950 px-4">
       <div className="flex w-full max-w-2xl flex-col items-center gap-8">
         {/* Hero */}
-        <div className="text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
-            Karachordy
-          </h1>
+        <div className="text-center flex flex-col items-center">
+          <Image
+            src="/karachordy-logo-nobg.png"
+            alt="Karachordy"
+            width={400}
+            height={100}
+            className="h-16 w-auto object-contain sm:h-20"
+            priority
+          />
           <p className="mt-3 text-lg text-zinc-400">
             Paste a YouTube link or search for a song. Get synced chords. Practice along.
           </p>
