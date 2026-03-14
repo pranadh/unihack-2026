@@ -11,6 +11,7 @@
   "dependencies": {
     "@types/youtube-player": "^5.5.11",
     "karachordy": "file:..",
+    "lightningcss": "1.31.1",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
