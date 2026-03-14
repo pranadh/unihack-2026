@@ -105,14 +105,29 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const lookupUrl = `${API_BASE_URL}/api/requests/lookup?url=${encodeURIComponent(url)}`;
+    const createUrl = `${API_BASE_URL}/api/requests`;
+
+    console.info("[api/recognize] proxy targets", {
+      apiBaseUrl: API_BASE_URL,
+      lookupUrl,
+      createUrl,
+      requestOrigin: request.headers.get("origin") ?? null,
+    });
+
     const lookupRes = await fetch(
-      `${API_BASE_URL}/api/requests/lookup?url=${encodeURIComponent(url)}`,
+      lookupUrl,
       {
         method: "GET",
         cache: "no-store",
         signal: AbortSignal.timeout(20_000),
       }
     );
+
+    console.info("[api/recognize] lookup response", {
+      status: lookupRes.status,
+      statusText: lookupRes.statusText,
+    });
 
     if (!lookupRes.ok) {
       return NextResponse.json(
@@ -132,7 +147,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const createRes = await fetch(`${API_BASE_URL}/api/requests`, {
+    const createRes = await fetch(createUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -140,6 +155,11 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({ url }),
       cache: "no-store",
       signal: AbortSignal.timeout(20_000),
+    });
+
+    console.info("[api/recognize] create response", {
+      status: createRes.status,
+      statusText: createRes.statusText,
     });
 
     if (!createRes.ok) {
