@@ -145,12 +145,18 @@ function localGridInterval(time: number, grid: number[], fallback: number): numb
 }
 
 /**
- * Snap every chord's start/end to the nearest grid point.
+ * Quantize chords by snapping only the START to the nearest grid point
+ * and preserving the original duration.
+ *
+ * Snapping both start and end independently causes passing chords
+ * (0.2–0.4s) to stretch to a full grid interval (~0.5s quarter note),
+ * destroying their rhythmic character.  By only snapping the onset and
+ * carrying the original duration forward, short chords stay short.
  *
  * Post-processing guarantees:
  *   - Every chord has end > start (minimum gap = smallest grid interval)
- *   - No overlap between consecutive chords (later chord's start >= prev end)
- *   - Original chord labels are preserved
+ *   - No overlap between consecutive chords (end truncated to next start)
+ *   - Original chord labels and durations are preserved where possible
  */
 function quantizeChords(chords: ChordEvent[], grid: number[]): ChordEvent[] {
   if (grid.length < 2 || chords.length === 0) return chords;
@@ -159,27 +165,28 @@ function quantizeChords(chords: ChordEvent[], grid: number[]): ChordEvent[] {
     ...grid.slice(1).map((g, i) => g - grid[i])
   );
 
-  const quantized: ChordEvent[] = chords.map((c) => ({
-    start: snapToGrid(c.start, grid),
-    end: snapToGrid(c.end, grid),
-    chord: c.chord,
-  }));
+  // Step 1: snap starts, derive ends from original duration
+  const quantized: ChordEvent[] = chords.map((c) => {
+    const originalDur = c.end - c.start;
+    const snappedStart = snapToGrid(c.start, grid);
+    return {
+      start: snappedStart,
+      end: snappedStart + originalDur,
+      chord: c.chord,
+    };
+  });
 
-  // Fix collapsed chords (end <= start after snapping)
-  for (const c of quantized) {
-    if (c.end <= c.start) {
-      c.end = c.start + minGap;
+  // Step 2: enforce no overlap — truncate end to next chord's start
+  for (let i = 0; i < quantized.length - 1; i++) {
+    if (quantized[i].end > quantized[i + 1].start) {
+      quantized[i].end = quantized[i + 1].start;
     }
   }
 
-  // Fix overlaps: ensure each chord starts at or after the previous chord's end
-  for (let i = 1; i < quantized.length; i++) {
-    if (quantized[i].start < quantized[i - 1].end) {
-      quantized[i].start = quantized[i - 1].end;
-    }
-    // Re-check end > start after overlap fix
-    if (quantized[i].end <= quantized[i].start) {
-      quantized[i].end = quantized[i].start + minGap;
+  // Step 3: enforce minimum duration (safety net for collapsed chords)
+  for (const c of quantized) {
+    if (c.end <= c.start) {
+      c.end = c.start + minGap;
     }
   }
 
