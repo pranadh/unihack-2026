@@ -15,6 +15,7 @@ interface PlayData {
   duration?: number;
   bpm?: number;
   variable_tempo?: boolean;
+  title?: string;
 }
 
 function PlaybackContent() {
@@ -123,7 +124,7 @@ function PlaybackContent() {
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold text-white">
-              Playback Workspace
+              {playData.title ?? "Playback Workspace"}
             </h1>
             <div className="flex items-center gap-3">
               <p className="text-xs text-zinc-500">

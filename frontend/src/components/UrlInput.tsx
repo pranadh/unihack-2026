@@ -3,23 +3,40 @@
 import { useState, useCallback, type FormEvent } from "react";
 
 interface UrlInputProps {
-  onSubmit: (url: string) => void;
+  onSubmit: (input: string) => void;
   isLoading: boolean;
 }
 
 const YOUTUBE_REGEX =
   /^(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})(?:[&?#].*)?$/;
 
+/**
+ * Returns true if the input looks like it could be a URL (starts with http(s)
+ * or contains youtube.com / youtu.be).  Used to decide whether to apply strict
+ * YouTube URL validation or treat the input as a free-text search query.
+ */
+function looksLikeUrl(value: string): boolean {
+  const v = value.trim().toLowerCase();
+  return (
+    v.startsWith("http://") ||
+    v.startsWith("https://") ||
+    v.includes("youtube.com") ||
+    v.includes("youtu.be")
+  );
+}
+
 export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
-  const [url, setUrl] = useState("");
+  const [input, setInput] = useState("");
   const [error, setError] = useState("");
 
   const validate = useCallback((value: string): boolean => {
-    if (!value.trim()) {
-      setError("Please enter a YouTube URL");
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setError("Please enter a YouTube URL or search for a song");
       return false;
     }
-    if (!YOUTUBE_REGEX.test(value.trim())) {
+    // If it looks like a URL, enforce YouTube URL format
+    if (looksLikeUrl(trimmed) && !YOUTUBE_REGEX.test(trimmed)) {
       setError(
         "Please enter a valid YouTube URL (e.g. youtube.com/watch?v=... or youtu.be/...)"
       );
@@ -31,8 +48,8 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (validate(url)) {
-      onSubmit(url.trim());
+    if (validate(input)) {
+      onSubmit(input.trim());
     }
   };
 
@@ -40,18 +57,18 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
     <form onSubmit={handleSubmit} className="w-full max-w-2xl">
       <div className="flex flex-col gap-3">
         <label htmlFor="youtube-url" className="text-sm font-medium text-zinc-300">
-          YouTube URL
+          YouTube URL or Song Search
         </label>
         <div className="flex gap-2">
           <input
             id="youtube-url"
-            type="url"
-            value={url}
+            type="text"
+            value={input}
             onChange={(e) => {
-              setUrl(e.target.value);
+              setInput(e.target.value);
               if (error) validate(e.target.value);
             }}
-            placeholder="https://youtube.com/watch?v=..."
+            placeholder="Paste a YouTube URL or search for a song..."
             className="flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-base text-white placeholder-zinc-500 outline-none transition-colors focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
             disabled={isLoading}
             aria-describedby={error ? "url-error" : undefined}

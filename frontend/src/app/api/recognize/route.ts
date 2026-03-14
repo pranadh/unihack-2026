@@ -12,7 +12,25 @@ const CHORDMINI_URL =
   process.env.CHORDMINI_API_URL ?? "http://134.199.153.5:5001";
 
 const YOUTUBE_URL_RE =
-  /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}/;
+  /^(https?:\/\/)?(www\.|m\.)?(youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)[\w-]{11}/;
+
+/**
+ * Extract a YouTube video ID from a URL string.
+ * Returns null if the string is not a recognizable YouTube URL.
+ */
+function extractVideoId(url: string): string | null {
+  const match = url.match(
+    /(?:v=|youtu\.be\/|shorts\/|embed\/)([\w-]{11})/
+  );
+  return match?.[1] ?? null;
+}
+
+/**
+ * Determine whether user input is a YouTube URL or a free-text search query.
+ */
+function isYouTubeUrl(input: string): boolean {
+  return YOUTUBE_URL_RE.test(input);
+}
 
 /**
  * Fixed offset (seconds) subtracted from all chord timestamps to
@@ -297,17 +315,20 @@ async function detectBpm(audioPath: string): Promise<BpmResult | null> {
  * POST /api/recognize
  *
  * Accepts: { url: string }
- * Returns: { chords: ChordEvent[], duration?: number, bpm?: number, variable_tempo?: boolean }
+ *   - If `url` is a YouTube URL, downloads audio directly.
+ *   - If `url` is a free-text query, uses yt-dlp's ytsearch to find and download the top result.
+ *
+ * Returns: { chords, duration?, bpm?, variable_tempo?, videoId?, title? }
  *
  * Pipeline:
- *   1. Download YouTube audio via yt-dlp
+ *   1. Download YouTube audio via yt-dlp (direct URL or ytsearch:query)
  *   2. In parallel:
  *      a. Upload audio to ChordMini for chord recognition
  *      b. Run variable-tempo BPM detection via librosa PLP
  *   3. Snap chord timestamps to the beat grid
  *   4. Apply YouTube offset correction
  *   5. Filter micro-chord artifacts
- *   6. Return processed chord data
+ *   6. Return processed chord data with resolved video ID
  */
 export async function POST(request: NextRequest) {
   let body: { url?: string };
@@ -320,13 +341,35 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const url = body.url?.trim();
-  if (!url || !YOUTUBE_URL_RE.test(url)) {
+  const rawInput = body.url?.trim();
+  if (!rawInput) {
     return NextResponse.json(
-      { error: "Please provide a valid YouTube URL." },
+      { error: "Please provide a YouTube URL or search query." },
       { status: 400 }
     );
   }
+
+  // Determine if this is a direct URL or a search query
+  const isUrl = isYouTubeUrl(rawInput);
+
+  // For URLs, validate format; for search queries, just check length
+  if (!isUrl) {
+    if (rawInput.length < 2) {
+      return NextResponse.json(
+        { error: "Search query is too short. Please enter at least 2 characters." },
+        { status: 400 }
+      );
+    }
+    if (rawInput.length > 200) {
+      return NextResponse.json(
+        { error: "Search query is too long. Please keep it under 200 characters." },
+        { status: 400 }
+      );
+    }
+  }
+
+  // The argument passed to yt-dlp: either the raw URL or a ytsearch: query
+  const ytDlpTarget = isUrl ? rawInput : `ytsearch1:${rawInput}`;
 
   let tempDir: string | null = null;
 
@@ -342,17 +385,58 @@ export async function POST(request: NextRequest) {
       "--extract-audio",
       "--no-playlist",
       "--no-overwrites",
+      "--no-warnings",
+      "--print-json",
       ...(ffmpegBinDir ? ["--ffmpeg-location", ffmpegBinDir] : []),
       "-o",
       outputTemplate,
-      url,
+      ytDlpTarget,
     ];
 
-    await execFileAsync("python", ytDlpArgs, {
+    const { stdout: ytDlpStdout } = await execFileAsync("python", ytDlpArgs, {
       timeout: 120_000,
       maxBuffer: 10 * 1024 * 1024,
       env: buildEnv(),
     });
+
+    // Parse yt-dlp JSON output to extract resolved video ID and title.
+    // yt-dlp with --print-json outputs a single JSON object to stdout.
+    // We look for the last complete JSON object in case there is
+    // any stray output before/after it.
+    let resolvedVideoId: string | undefined;
+    let resolvedTitle: string | undefined;
+    try {
+      // Try parsing the entire output first (fastest path)
+      const ytDlpJson = JSON.parse(ytDlpStdout.trim()) as {
+        id?: string;
+        title?: string;
+        webpage_url?: string;
+      };
+      resolvedVideoId = ytDlpJson.id ?? undefined;
+      resolvedTitle = ytDlpJson.title ?? undefined;
+    } catch {
+      // Fallback: find the last JSON object in the output (handles stray warnings)
+      const jsonMatch = ytDlpStdout.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[0]) as {
+            id?: string;
+            title?: string;
+          };
+          resolvedVideoId = parsed.id ?? undefined;
+          resolvedTitle = parsed.title ?? undefined;
+        } catch {
+          // give up on JSON parsing
+        }
+      }
+      // If still no video ID, try to extract from the URL input
+      if (!resolvedVideoId && isUrl) {
+        resolvedVideoId = extractVideoId(rawInput) ?? undefined;
+      }
+      if (!resolvedVideoId) {
+        console.warn("Could not parse yt-dlp JSON output for metadata.");
+      }
+    }
 
     // Find the downloaded audio file
     const files = readdirSync(tempDir);
@@ -446,6 +530,8 @@ export async function POST(request: NextRequest) {
       duration: chordData.duration ?? bpmResult?.duration,
       bpm: bpm || undefined,
       variable_tempo: bpmResult?.variable_tempo,
+      videoId: resolvedVideoId,
+      title: resolvedTitle,
     });
   } catch (err) {
     const message =

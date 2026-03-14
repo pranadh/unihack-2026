@@ -28,21 +28,28 @@ export interface RecognizeResult {
   duration?: number;
   bpm?: number;
   variable_tempo?: boolean;
+  /** Resolved YouTube video ID (always present, even for search queries). */
+  videoId?: string;
+  /** Resolved video title (present when input was a search query). */
+  title?: string;
 }
 
 // ── API Methods ─────────────────────────────────────────────────────────────
 
 /**
- * Submit a YouTube URL for chord recognition.
+ * Submit a YouTube URL or search query for chord recognition.
  * Calls /api/recognize which downloads audio and sends to ChordMini.
+ *
+ * If `input` is a YouTube URL, it is used directly.
+ * If `input` is a free-text query, yt-dlp resolves it via YouTube search.
  */
 export async function recognizeChords(
-  youtubeUrl: string
+  input: string
 ): Promise<RecognizeResult> {
   const res = await fetch("/api/recognize", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url: youtubeUrl }),
+    body: JSON.stringify({ url: input }),
   });
 
   if (!res.ok) {

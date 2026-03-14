@@ -12,13 +12,25 @@ export default function Home() {
   const [error, setError] = useState("");
 
   const handleSubmit = useCallback(
-    async (url: string) => {
+    async (input: string) => {
       setIsLoading(true);
       setError("");
-      setStatusMessage("Downloading audio and extracting chords... This may take up to 2 minutes.");
+
+      // Determine if this is a search query or a URL
+      const isUrl =
+        input.startsWith("http://") ||
+        input.startsWith("https://") ||
+        input.includes("youtube.com") ||
+        input.includes("youtu.be");
+
+      setStatusMessage(
+        isUrl
+          ? "Downloading audio and extracting chords... This may take up to 2 minutes."
+          : `Searching YouTube for "${input}" and extracting chords... This may take up to 2 minutes.`
+      );
 
       try {
-        const result = await recognizeChords(url);
+        const result = await recognizeChords(input);
 
         if (!result.chords || result.chords.length === 0) {
           setError("No chords detected in this video. Try a different song.");
@@ -27,19 +39,31 @@ export default function Home() {
           return;
         }
 
-        // Store result in sessionStorage so the play page can read it
-        const videoIdMatch = url.match(
-          /(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/
-        );
-        const videoId = videoIdMatch?.[1] ?? "";
+        // Get the video ID: prefer API response (covers search queries),
+        // fall back to extracting from the URL input
+        let videoId = result.videoId ?? "";
+        if (!videoId && isUrl) {
+          const videoIdMatch = input.match(
+            /(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/
+          );
+          videoId = videoIdMatch?.[1] ?? "";
+        }
+
+        if (!videoId) {
+          setError("Could not determine the video ID. Please try again.");
+          setIsLoading(false);
+          setStatusMessage("");
+          return;
+        }
 
         const playData = {
           videoId,
-          youtubeUrl: url,
+          youtubeUrl: isUrl ? input : `https://www.youtube.com/watch?v=${videoId}`,
           chords: result.chords,
           duration: result.duration,
           bpm: result.bpm,
           variable_tempo: result.variable_tempo,
+          title: result.title,
         };
         sessionStorage.setItem("karachordy-play", JSON.stringify(playData));
 
@@ -65,7 +89,7 @@ export default function Home() {
             Karachordy
           </h1>
           <p className="mt-3 text-lg text-zinc-400">
-            Paste a YouTube link. Get synced chords. Practice along.
+            Paste a YouTube link or search for a song. Get synced chords. Practice along.
           </p>
         </div>
 
@@ -94,8 +118,8 @@ export default function Home() {
           {[
             {
               step: "1",
-              title: "Paste Link",
-              desc: "Enter any YouTube URL with music",
+              title: "Paste or Search",
+              desc: "Enter a YouTube URL or search for any song",
             },
             {
               step: "2",
