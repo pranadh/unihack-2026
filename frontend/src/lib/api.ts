@@ -1,8 +1,8 @@
 /**
  * API client for Karachordy.
  *
- * Uses Next.js API routes that run server-side to proxy requests
- * to the ChordMini API (avoids CORS and keeps the VPS untouched).
+ * Uses Next.js API routes that run server-side and proxy to the
+ * backend API running on the VPS.
  */
 
 export class ApiError extends Error {

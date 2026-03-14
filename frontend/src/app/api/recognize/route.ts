@@ -191,6 +191,7 @@ async function detectBpm(audioPath: string): Promise<BpmResult | null> {
  */
 export async function POST(request: NextRequest) {
   let body: { url?: string };
+
   try {
     body = (await request.json()) as { url?: string };
   } catch {
@@ -311,12 +312,6 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Unknown error occurred";
-    console.error("recognize error:", err);
     return NextResponse.json({ error: message }, { status: 500 });
-  } finally {
-    // Always clean up temp files
-    if (tempDir) {
-      await rm(tempDir, { recursive: true, force: true }).catch(() => {});
-    }
   }
 }

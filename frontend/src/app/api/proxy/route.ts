@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const API_BASE_URL =
-  process.env.CHORDMINI_API_BASE_URL ??
+  process.env.BACKEND_API_BASE_URL ??
   process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "http://134.199.153.5:5001";
+  "http://localhost:4000";
 
 const ALLOWED_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 
