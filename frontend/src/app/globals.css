@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a132b;
-  --foreground: #eef4ff;
+  --background: #120f1b;
+  --foreground: #f8efe7;
 }
 
 @theme inline {
@@ -13,9 +13,44 @@
 }
 
 body {
-  background: radial-gradient(circle at 20% -10%, #1a3f8a 0%, #0a132b 45%, #060d1f 100%);
+  min-height: 100vh;
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at top left, rgba(226, 168, 95, 0.18), transparent 30%),
+    radial-gradient(circle at 85% 12%, rgba(217, 121, 95, 0.16), transparent 28%),
+    radial-gradient(circle at 50% 100%, rgba(109, 92, 161, 0.14), transparent 36%),
+    linear-gradient(180deg, #171220 0%, #100d17 52%, #0b0911 100%);
   color: var(--foreground);
   font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: auto;
+  pointer-events: none;
+  z-index: -1;
+  filter: blur(60px);
+  opacity: 0.7;
+}
+
+body::before {
+  top: 5rem;
+  left: -4rem;
+  width: 18rem;
+  height: 18rem;
+  background: rgba(226, 168, 95, 0.14);
+}
+
+body::after {
+  right: -5rem;
+  bottom: 12rem;
+  width: 20rem;
+  height: 20rem;
+  background: rgba(184, 106, 122, 0.16);
 }
 
 /* Smooth scrollbar for chord timeline */
@@ -28,10 +63,10 @@ body {
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb {
-  background: #37518b;
+  background: #7e5e58;
   border-radius: 3px;
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background: #4c6ab0;
+  background: #a4755d;
 }

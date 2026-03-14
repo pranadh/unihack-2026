@@ -14,23 +14,23 @@ export default function Navbar() {
 
   return (
     <nav className="border-b border-blue-900/60 bg-[#3242CA]">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
+      <div className="mx-auto flex h-17 max-w-7xl items-center justify-between px-4">
         <Link
           href="/"
-          className="inline-flex items-center"
+          className="relative z-10 inline-flex items-center"
           aria-label="Karachordy home"
         >
           <Image
             src="/karachordy_colour.png"
             alt="Karachordy"
-            width={180}
-            height={36}
+            width={300}
+            height={60}
             priority
-            className="h-9 w-auto"
+            className="h-[3.75rem] w-auto drop-shadow-[0_6px_18px_rgba(14,18,45,0.28)]"
           />
         </Link>
 
-        <div className="flex items-center gap-1">
+        <div className="relative z-10 flex items-center gap-1 rounded-full border border-white/12 bg-white/10 p-1.5 backdrop-blur">
           {NAV_ITEMS.map((item) => {
             const isActive =
               item.href === "/"
@@ -41,10 +41,10 @@ export default function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                className={`rounded-full px-4 py-2 text-sm font-medium transition-all ${
                   isActive
-                    ? "bg-white/20 text-white"
-                    : "text-blue-100/80 hover:bg-white/10 hover:text-white"
+                    ? "bg-white/22 text-white"
+                    : "text-blue-50/82 hover:bg-white/10 hover:text-white"
                 }`}
                 aria-current={isActive ? "page" : undefined}
               >

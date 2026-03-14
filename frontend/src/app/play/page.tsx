@@ -81,7 +81,7 @@ function PlaybackContent() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center">
+      <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center bg-[#0d0b12]">
         <div className="flex flex-col items-center gap-3">
           <svg
             className="h-8 w-8 animate-spin text-blue-200"
@@ -102,7 +102,7 @@ function PlaybackContent() {
               className="opacity-75"
             />
           </svg>
-          <p className="text-sm text-blue-100/75">Loading playback data...</p>
+          <p className="text-sm text-stone-200/75">Loading playback data...</p>
         </div>
       </div>
     );
@@ -110,7 +110,7 @@ function PlaybackContent() {
 
   if (error || !playData) {
     return (
-      <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center">
+      <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center bg-[#0d0b12]">
         <div className="max-w-md rounded-lg border border-red-300/35 bg-red-300/10 p-6 text-center">
           <h2 className="text-lg font-semibold text-red-100">Error</h2>
           <p className="mt-2 text-sm text-red-100/85">
@@ -118,7 +118,7 @@ function PlaybackContent() {
           </p>
           <Link
             href="/"
-            className="mt-4 inline-block rounded-md bg-[#3242CA] px-4 py-2 text-sm text-white transition-colors hover:bg-[#2b3ab2]"
+            className="mt-4 inline-block rounded-xl bg-gradient-to-r from-[#3242CA] via-[#7054b8] to-[#d7795f] px-4 py-2 text-sm text-white transition-all hover:brightness-110"
           >
             Back to Home
           </Link>
@@ -134,20 +134,20 @@ function PlaybackContent() {
       : 0);
 
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)] flex-col">
+    <div className="flex min-h-[calc(100vh-3.5rem)] flex-col bg-[#0d0b12]">
       {/* Title bar */}
-      <div className="border-b border-blue-300/20 bg-blue-950/25 px-4 py-3">
+      <div className="border-b border-white/8 bg-[#14101b]/95 px-4 py-3 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-semibold text-white">
               {playData.title ?? "Playback Workspace"}
             </h1>
             <div className="flex items-center gap-3">
-              <p className="text-xs text-blue-100/60">
+              <p className="text-xs text-stone-200/60">
                 Video: {playData.videoId}
               </p>
               {playData.bpm ? (
-                <span className="rounded bg-[#3242CA]/30 px-1.5 py-0.5 text-xs font-medium text-blue-100">
+                <span className="rounded-full border border-white/10 bg-white/6 px-2 py-0.5 text-xs font-medium text-stone-100">
                   {Math.round(playData.bpm)} BPM{playData.variable_tempo ? " (variable)" : ""}
                 </span>
               ) : null}
@@ -155,13 +155,13 @@ function PlaybackContent() {
           </div>
 
           {/* View mode toggle */}
-          <div className="mx-4 flex items-center gap-1 rounded-lg bg-blue-950/55 p-1">
+          <div className="mx-4 flex items-center gap-1 rounded-xl bg-white/5 p-1">
             <button
               onClick={() => setViewMode("falling")}
               className={`min-h-[36px] rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 viewMode === "falling"
                   ? "bg-[#3242CA] text-white"
-                  : "text-blue-100/70 hover:text-white"
+                  : "text-stone-200/70 hover:text-white"
               }`}
               aria-label="Falling notes view"
               aria-pressed={viewMode === "falling"}
@@ -173,7 +173,7 @@ function PlaybackContent() {
               className={`min-h-[36px] rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                 viewMode === "list"
                   ? "bg-[#3242CA] text-white"
-                  : "text-blue-100/70 hover:text-white"
+                  : "text-stone-200/70 hover:text-white"
               }`}
               aria-label="List view"
               aria-pressed={viewMode === "list"}
@@ -202,7 +202,7 @@ function PlaybackContent() {
         </div>
 
         {/* Chord panel (falling or list view) */}
-        <div className="flex h-[calc(100vh-12rem)] flex-col rounded-lg border border-blue-300/20 bg-blue-950/35 lg:flex-1">
+        <div className="flex h-[calc(100vh-12rem)] flex-col rounded-[1.5rem] border border-white/8 bg-[#15111b] shadow-[0_18px_50px_rgba(0,0,0,0.18)] lg:flex-1">
           {viewMode === "falling" ? (
             <FallingChords
               chords={playData.chords}
@@ -228,8 +228,8 @@ export default function PlayPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center">
-          <p className="text-blue-100/75">Loading...</p>
+        <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center bg-[#0d0b12]">
+          <p className="text-stone-200/75">Loading...</p>
         </div>
       }
     >

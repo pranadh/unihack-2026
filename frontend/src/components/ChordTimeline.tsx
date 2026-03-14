@@ -53,7 +53,7 @@ export default function ChordTimeline({
 
   if (chords.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center text-blue-100/55">
+      <div className="flex h-full items-center justify-center text-stone-200/55">
         No chords detected
       </div>
     );
@@ -62,14 +62,14 @@ export default function ChordTimeline({
   return (
     <div className="flex h-full flex-col">
       {/* Current chord display - large and prominent */}
-      <div className="flex flex-col items-center justify-center border-b border-blue-300/20 py-6">
-        <p className="mb-1 text-xs uppercase tracking-wider text-blue-100/55">
+      <div className="flex flex-col items-center justify-center border-b border-white/8 py-6">
+        <p className="mb-1 text-xs uppercase tracking-wider text-stone-200/55">
           Current Chord
         </p>
-        <p className="text-5xl font-bold text-blue-100">
+        <p className="text-5xl font-bold text-stone-50">
           {activeIndex >= 0 ? chords[activeIndex].chord : "--"}
         </p>
-        <p className="mt-1 text-sm text-blue-100/55">
+        <p className="mt-1 text-sm text-stone-200/55">
           {formatTime(currentTime)} / {formatTime(durationSeconds)}
         </p>
       </div>
@@ -87,25 +87,25 @@ export default function ChordTimeline({
                 onClick={() => onSeek?.(chord.start)}
                 className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-left transition-all ${
                   isActive
-                    ? "bg-[#3242CA]/25 ring-1 ring-blue-200/40"
+                    ? "bg-white/8 ring-1 ring-white/12"
                     : isPast
                       ? "opacity-50 hover:opacity-75"
-                      : "hover:bg-blue-900/35"
+                      : "hover:bg-white/6"
                 }`}
                 aria-current={isActive ? "true" : undefined}
                 aria-label={`${chord.chord} at ${formatTime(chord.start)}`}
               >
-                <span className="w-12 text-right text-xs text-blue-100/55">
+                <span className="w-12 text-right text-xs text-stone-200/55">
                   {formatTime(chord.start)}
                 </span>
                 <span
                   className={`text-lg font-semibold ${
-                    isActive ? "text-blue-100" : "text-blue-50"
+                    isActive ? "text-amber-50" : "text-stone-100"
                   }`}
                 >
                   {chord.chord}
                 </span>
-                <span className="ml-auto text-xs text-blue-100/45">
+                <span className="ml-auto text-xs text-stone-300/40">
                   {(chord.end - chord.start).toFixed(1)}s
                 </span>
               </button>

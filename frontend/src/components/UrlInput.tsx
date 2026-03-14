@@ -38,11 +38,11 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-2xl">
-      <div className="flex flex-col gap-3">
-        <label htmlFor="youtube-url" className="text-sm font-medium text-blue-100/85">
+      <div className="flex flex-col gap-3 rounded-[1.75rem] border border-white/10 bg-[linear-gradient(150deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-4 shadow-[0_20px_70px_rgba(0,0,0,0.22)] backdrop-blur sm:p-5">
+        <label htmlFor="youtube-url" className="text-sm font-medium text-stone-100/85">
           YouTube URL
         </label>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             id="youtube-url"
             type="url"
@@ -52,7 +52,7 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
               if (error) validate(e.target.value);
             }}
             placeholder="https://youtube.com/watch?v=..."
-            className="flex-1 rounded-lg border border-blue-300/25 bg-blue-950/45 px-4 py-3 text-base text-white placeholder-blue-100/45 outline-none transition-colors focus:border-[#4f5de0] focus:ring-1 focus:ring-[#4f5de0]"
+            className="flex-1 rounded-xl border border-amber-100/15 bg-[#241a24]/70 px-4 py-3 text-base text-white placeholder-stone-300/40 outline-none transition-colors focus:border-amber-300/50 focus:ring-1 focus:ring-amber-300/45"
             disabled={isLoading}
             aria-describedby={error ? "url-error" : undefined}
             aria-invalid={error ? "true" : "false"}
@@ -60,7 +60,7 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
           <button
             type="submit"
             disabled={isLoading}
-            className="rounded-lg bg-[#3242CA] px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-[#2b3ab2] focus:outline-none focus:ring-2 focus:ring-[#4f5de0] focus:ring-offset-2 focus:ring-offset-[#0a132b] disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-xl bg-gradient-to-r from-[#3242CA] via-[#7054b8] to-[#d7795f] px-6 py-3 text-base font-semibold text-white transition-all hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-amber-200/60 focus:ring-offset-2 focus:ring-offset-[#120f1b] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoading ? (
               <span className="flex items-center gap-2">
@@ -86,12 +86,12 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
                 Processing
               </span>
             ) : (
-              "Analyze Chords"
+              "Analyse Chords"
             )}
           </button>
         </div>
         {error && (
-          <p id="url-error" className="text-sm text-red-100" role="alert">
+          <p id="url-error" className="text-sm text-rose-100" role="alert">
             {error}
           </p>
         )}
