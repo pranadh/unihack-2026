@@ -308,8 +308,16 @@ export default function FallingChords({
     <div className="flex h-full flex-col">
       {/* Top: prioritize current + next chord visibility */}
       <div className="border-b border-white/8 px-3 py-3 sm:px-4">
-        <div className="flex items-stretch justify-center gap-2 sm:gap-3">
-          <div className="flex min-w-0 flex-1 max-w-[260px] flex-col items-center rounded-[1.25rem] border border-white/8 bg-[#1a1521] px-2 py-2">
+        <div
+          className={`flex items-stretch justify-center ${
+            instrument === "piano" ? "flex-col gap-3 sm:flex-row" : "gap-2 sm:gap-3"
+          }`}
+        >
+          <div
+            className={`flex min-w-0 flex-1 flex-col items-center rounded-[1.25rem] border border-white/8 bg-[#1a1521] px-2 py-2 ${
+              instrument === "piano" ? "mx-auto w-full max-w-[380px]" : "max-w-[260px]"
+            }`}
+          >
             <p className="text-[10px] uppercase tracking-wider text-stone-200/70">Now</p>
             <p className="truncate text-3xl font-bold text-stone-50">
               {activeChord && activeChord.chord !== "N" ? activeDisplay?.display ?? activeChord.chord : "--"}
@@ -321,16 +329,24 @@ export default function FallingChords({
               <ChordDiagram
                 chord={activeChord.chord}
                 instrument={instrument}
-                size={instrument === "piano" ? 184 : 128}
+                size={instrument === "piano" ? 288 : 128}
               />
             ) : (
-              <div className="flex h-[160px] w-[128px] items-center justify-center">
+              <div
+                className={`flex items-center justify-center ${
+                  instrument === "piano" ? "h-[170px] w-[288px]" : "h-[160px] w-[128px]"
+                }`}
+              >
                 <span className="text-2xl text-stone-200/40">--</span>
               </div>
             )}
           </div>
 
-          <div className="flex min-w-0 flex-1 max-w-[260px] flex-col items-center rounded-[1.25rem] border border-white/8 bg-[#15111b] px-2 py-2">
+          <div
+            className={`flex min-w-0 flex-1 flex-col items-center rounded-[1.25rem] border border-white/8 bg-[#15111b] px-2 py-2 ${
+              instrument === "piano" ? "mx-auto w-full max-w-[360px]" : "max-w-[260px]"
+            }`}
+          >
             <p className="text-[10px] uppercase tracking-wider text-stone-200/60">Next</p>
             <p className="truncate text-3xl font-bold text-stone-100">
               {nextChord ? nextDisplay?.display ?? nextChord.chord : "--"}
@@ -342,10 +358,14 @@ export default function FallingChords({
               <ChordDiagram
                 chord={nextChord.chord}
                 instrument={instrument}
-                size={instrument === "piano" ? 168 : 116}
+                size={instrument === "piano" ? 264 : 116}
               />
             ) : (
-              <div className="flex h-[145px] w-[116px] items-center justify-center">
+              <div
+                className={`flex items-center justify-center ${
+                  instrument === "piano" ? "h-[156px] w-[264px]" : "h-[145px] w-[116px]"
+                }`}
+              >
                 <span className="text-2xl text-stone-200/35">--</span>
               </div>
             )}

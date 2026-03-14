@@ -222,7 +222,7 @@ function lookupVoicing(chordName: string): ChordVoicing | null {
 interface PianoChordShape {
   root: string;
   bass: string | null;
-  tonePitchClasses: number[];
+  keyOffsets: number[];
   toneLabels: string[];
 }
 
@@ -277,22 +277,34 @@ const PIANO_QUALITY_INTERVALS: Array<[RegExp, number[]]> = [
 ];
 
 const PIANO_WHITE_KEYS = [
-  { note: "C", pitchClass: 0 },
-  { note: "D", pitchClass: 2 },
-  { note: "E", pitchClass: 4 },
-  { note: "F", pitchClass: 5 },
-  { note: "G", pitchClass: 7 },
-  { note: "A", pitchClass: 9 },
-  { note: "B", pitchClass: 11 },
-  { note: "C", pitchClass: 0 },
+  { note: "C", pitchClass: 0, offset: 0 },
+  { note: "D", pitchClass: 2, offset: 2 },
+  { note: "E", pitchClass: 4, offset: 4 },
+  { note: "F", pitchClass: 5, offset: 5 },
+  { note: "G", pitchClass: 7, offset: 7 },
+  { note: "A", pitchClass: 9, offset: 9 },
+  { note: "B", pitchClass: 11, offset: 11 },
+  { note: "C", pitchClass: 0, offset: 12 },
+  { note: "D", pitchClass: 2, offset: 14 },
+  { note: "E", pitchClass: 4, offset: 16 },
+  { note: "F", pitchClass: 5, offset: 17 },
+  { note: "G", pitchClass: 7, offset: 19 },
+  { note: "A", pitchClass: 9, offset: 21 },
+  { note: "B", pitchClass: 11, offset: 23 },
+  { note: "C", pitchClass: 0, offset: 24 },
 ];
 
 const PIANO_BLACK_KEYS = [
-  { note: "C#", pitchClass: 1, leftWhiteKey: 0 },
-  { note: "D#", pitchClass: 3, leftWhiteKey: 1 },
-  { note: "F#", pitchClass: 6, leftWhiteKey: 3 },
-  { note: "G#", pitchClass: 8, leftWhiteKey: 4 },
-  { note: "A#", pitchClass: 10, leftWhiteKey: 5 },
+  { note: "C#", pitchClass: 1, leftWhiteKey: 0, offset: 1 },
+  { note: "D#", pitchClass: 3, leftWhiteKey: 1, offset: 3 },
+  { note: "F#", pitchClass: 6, leftWhiteKey: 3, offset: 6 },
+  { note: "G#", pitchClass: 8, leftWhiteKey: 4, offset: 8 },
+  { note: "A#", pitchClass: 10, leftWhiteKey: 5, offset: 10 },
+  { note: "C#", pitchClass: 1, leftWhiteKey: 7, offset: 13 },
+  { note: "D#", pitchClass: 3, leftWhiteKey: 8, offset: 15 },
+  { note: "F#", pitchClass: 6, leftWhiteKey: 10, offset: 18 },
+  { note: "G#", pitchClass: 8, leftWhiteKey: 11, offset: 20 },
+  { note: "A#", pitchClass: 10, leftWhiteKey: 12, offset: 22 },
 ];
 
 function toPitchClass(note: string): number | null {
@@ -332,6 +344,40 @@ function simplifyPianoToneLabels(labels: string[]): string[] {
   return Array.from(new Set(labels)).slice(0, 4);
 }
 
+function buildPianoKeyOffsets(rootPitchClass: number, intervals: number[]): number[] {
+  const baseOffsets = Array.from(
+    new Set(intervals.map((interval) => rootPitchClass + interval))
+  ).filter((offset) => offset >= 0 && offset <= 24);
+
+  if (baseOffsets.length >= 4) {
+    return baseOffsets.slice(0, 4);
+  }
+
+  const expandedOffsets = [...baseOffsets];
+  const duplicates = [rootPitchClass + 12, rootPitchClass + 24];
+
+  for (const duplicate of duplicates) {
+    if (duplicate <= 24 && !expandedOffsets.includes(duplicate)) {
+      expandedOffsets.push(duplicate);
+    }
+    if (expandedOffsets.length >= 4) {
+      return expandedOffsets.slice(0, 4);
+    }
+  }
+
+  for (const offset of baseOffsets) {
+    const lifted = offset + 12;
+    if (lifted <= 24 && !expandedOffsets.includes(lifted)) {
+      expandedOffsets.push(lifted);
+    }
+    if (expandedOffsets.length >= 4) {
+      return expandedOffsets.slice(0, 4);
+    }
+  }
+
+  return expandedOffsets.slice(0, 4);
+}
+
 function lookupPianoShape(chordName: string): PianoChordShape | null {
   const parsed = parseChordName(chordName);
   if (!parsed) return null;
@@ -343,20 +389,16 @@ function lookupPianoShape(chordName: string): PianoChordShape | null {
   if (!intervals) return null;
 
   const preferFlats = parsed.root.includes("b") || parsed.bass?.includes("b") === true;
-  const tonePitchClasses = Array.from(
-    new Set(intervals.map((interval) => (rootPitchClass + interval) % 12))
-  );
-  const toneLabels = simplifyPianoToneLabels(
-    intervals.map((interval) =>
-      formatPitchClassName(rootPitchClass + interval, preferFlats)
-    )
+  const keyOffsets = buildPianoKeyOffsets(rootPitchClass, intervals);
+  const toneLabels = keyOffsets.map((offset) =>
+    formatPitchClassName(offset, preferFlats)
   );
 
   return {
     root: parsed.root,
     bass: parsed.bass,
-    tonePitchClasses,
-    toneLabels,
+    keyOffsets,
+    toneLabels: simplifyPianoToneLabels(toneLabels),
   };
 }
 
@@ -531,13 +573,13 @@ function PianoChordDiagram({ chord, size }: { chord: string; size: number }) {
     return null;
   }
 
-  const whiteKeyWidth = 24;
-  const whiteKeyHeight = 96;
-  const blackKeyWidth = 14;
-  const blackKeyHeight = 56;
+  const whiteKeyWidth = 22;
+  const whiteKeyHeight = 94;
+  const blackKeyWidth = 13;
+  const blackKeyHeight = 54;
   const viewW = PIANO_WHITE_KEYS.length * whiteKeyWidth;
   const viewH = 142;
-  const activePitchClasses = new Set(shape.tonePitchClasses);
+  const activeOffsets = new Set(shape.keyOffsets);
   const rootPitchClass = toPitchClass(shape.root);
 
   return (
@@ -562,8 +604,8 @@ function PianoChordDiagram({ chord, size }: { chord: string; size: number }) {
 
       <g transform="translate(0 28)">
         {PIANO_WHITE_KEYS.map((key, index) => {
-          const isActive = activePitchClasses.has(key.pitchClass);
-          const isRoot = key.pitchClass === rootPitchClass;
+          const isActive = activeOffsets.has(key.offset);
+          const isRoot = isActive && key.pitchClass === rootPitchClass;
 
           return (
             <g key={`${key.note}-${index}`}>
@@ -592,8 +634,8 @@ function PianoChordDiagram({ chord, size }: { chord: string; size: number }) {
         })}
 
         {PIANO_BLACK_KEYS.map((key, index) => {
-          const isActive = activePitchClasses.has(key.pitchClass);
-          const isRoot = key.pitchClass === rootPitchClass;
+          const isActive = activeOffsets.has(key.offset);
+          const isRoot = isActive && key.pitchClass === rootPitchClass;
 
           return (
             <rect
