@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useEffect, useCallback, useState } from "react";
 import type { ChordEvent } from "@/lib/api";
+import type { Instrument } from "@/lib/instruments";
 import ChordDiagram from "./ChordDiagram";
 
 /**
@@ -21,6 +22,7 @@ interface FallingChordsProps {
   chords: ChordEvent[];
   currentTime: number;
   durationSeconds: number;
+  instrument: Instrument;
   onSeek?: (time: number) => void;
 }
 
@@ -70,6 +72,7 @@ export default function FallingChords({
   chords,
   currentTime,
   durationSeconds,
+  instrument,
   onSeek,
 }: FallingChordsProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -297,7 +300,11 @@ export default function FallingChords({
               {activeChord && activeChord.chord !== "N" ? activeChord.chord : "--"}
             </p>
             {activeChord && activeChord.chord !== "N" ? (
-              <ChordDiagram chord={activeChord.chord} size={128} />
+              <ChordDiagram
+                chord={activeChord.chord}
+                instrument={instrument}
+                size={instrument === "piano" ? 184 : 128}
+              />
             ) : (
               <div className="flex h-[160px] w-[128px] items-center justify-center">
                 <span className="text-2xl text-stone-200/40">--</span>
@@ -311,7 +318,11 @@ export default function FallingChords({
               {nextChord ? nextChord.chord : "--"}
             </p>
             {nextChord ? (
-              <ChordDiagram chord={nextChord.chord} size={116} />
+              <ChordDiagram
+                chord={nextChord.chord}
+                instrument={instrument}
+                size={instrument === "piano" ? 168 : 116}
+              />
             ) : (
               <div className="flex h-[145px] w-[116px] items-center justify-center">
                 <span className="text-2xl text-stone-200/35">--</span>

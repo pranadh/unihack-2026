@@ -29,6 +29,10 @@ export interface RecognizeResult {
   bpm?: number;
 }
 
+export interface VideoMetaResult {
+  title: string;
+}
+
 // ── API Methods ─────────────────────────────────────────────────────────────
 
 /**
@@ -70,4 +74,21 @@ export async function checkHealth(): Promise<{ status: string }> {
   }
 
   return res.json() as Promise<{ status: string }>;
+}
+
+export async function fetchVideoTitle(videoId: string): Promise<string> {
+  const res = await fetch(`/api/video-meta?v=${encodeURIComponent(videoId)}`, {
+    method: "GET",
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(
+      (body as { error?: string }).error ?? "Failed to fetch video title",
+      res.status
+    );
+  }
+
+  const data = (await res.json()) as VideoMetaResult;
+  return data.title;
 }

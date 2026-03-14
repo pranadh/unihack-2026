@@ -8,7 +8,13 @@ import type { YouTubePlayerHandle } from "@/components/YouTubePlayer";
 import FallingChords from "@/components/FallingChords";
 import ChordTimeline from "@/components/ChordTimeline";
 import PlaybackControls from "@/components/PlaybackControls";
-import type { ChordEvent } from "@/lib/api";
+import { fetchVideoTitle, type ChordEvent } from "@/lib/api";
+import {
+  DEFAULT_INSTRUMENT,
+  INSTRUMENT_STORAGE_KEY,
+  isInstrument,
+  type Instrument,
+} from "@/lib/instruments";
 
 interface PlayData {
   videoId: string;
@@ -44,8 +50,18 @@ function PlaybackContent() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("falling");
+  const [instrument, setInstrument] = useState<Instrument>(DEFAULT_INSTRUMENT);
 
   useEffect(() => {
+    try {
+      const storedInstrument = window.localStorage.getItem(INSTRUMENT_STORAGE_KEY);
+      if (isInstrument(storedInstrument)) {
+        setInstrument(storedInstrument);
+      }
+    } catch {
+      // Ignore storage access issues and fall back to default instrument.
+    }
+
     try {
       const raw = sessionStorage.getItem("karachordy-play");
       if (!raw) {
@@ -70,6 +86,53 @@ function PlaybackContent() {
       setLoading(false);
     }
   }, [videoId]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(INSTRUMENT_STORAGE_KEY, instrument);
+    } catch {
+      // Ignore storage access issues; instrument choice still works for this session.
+    }
+  }, [instrument]);
+
+  useEffect(() => {
+    if (!playData?.videoId || playData.title) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadTitle = async () => {
+      try {
+        const title = await fetchVideoTitle(playData.videoId);
+        if (cancelled) {
+          return;
+        }
+
+        setPlayData((prev) => {
+          if (!prev || prev.videoId !== playData.videoId) {
+            return prev;
+          }
+
+          const next = { ...prev, title };
+          try {
+            sessionStorage.setItem("karachordy-play", JSON.stringify(next));
+          } catch {
+            // Ignore storage write issues; title can still render in memory.
+          }
+          return next;
+        });
+      } catch {
+        // Leave the existing fallback title in place if metadata fetch fails.
+      }
+    };
+
+    void loadTitle();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [playData]);
 
   const handleTimeUpdate = useCallback((time: number) => {
     setCurrentTime(time);
@@ -140,12 +203,9 @@ function PlaybackContent() {
         <div className="mx-auto flex max-w-7xl items-center justify-between">
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-lg font-semibold text-white">
-              {playData.title ?? "Playback Workspace"}
+              {playData.title ?? playData.videoId}
             </h1>
             <div className="flex items-center gap-3">
-              <p className="text-xs text-stone-200/60">
-                Video: {playData.videoId}
-              </p>
               {playData.bpm ? (
                 <span className="rounded-full border border-white/10 bg-white/6 px-2 py-0.5 text-xs font-medium text-stone-100">
                   {Math.round(playData.bpm)} BPM{playData.variable_tempo ? " (variable)" : ""}
@@ -154,32 +214,60 @@ function PlaybackContent() {
             </div>
           </div>
 
-          {/* View mode toggle */}
-          <div className="mx-4 flex items-center gap-1 rounded-xl bg-white/5 p-1">
-            <button
-              onClick={() => setViewMode("falling")}
-              className={`min-h-[36px] rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                viewMode === "falling"
-                  ? "bg-[#3242CA] text-white"
-                  : "text-stone-200/70 hover:text-white"
-              }`}
-              aria-label="Falling notes view"
-              aria-pressed={viewMode === "falling"}
-            >
-              Falling
-            </button>
-            <button
-              onClick={() => setViewMode("list")}
-              className={`min-h-[36px] rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                viewMode === "list"
-                  ? "bg-[#3242CA] text-white"
-                  : "text-stone-200/70 hover:text-white"
-              }`}
-              aria-label="List view"
-              aria-pressed={viewMode === "list"}
-            >
-              List
-            </button>
+          <div className="mx-4 flex flex-wrap items-center justify-end gap-2">
+            <div className="flex items-center gap-1 rounded-xl bg-white/5 p-1">
+              <button
+                onClick={() => setInstrument("guitar")}
+                className={`min-h-[36px] rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  instrument === "guitar"
+                    ? "bg-[#d7795f] text-white"
+                    : "text-stone-200/70 hover:text-white"
+                }`}
+                aria-label="Show guitar chord diagrams"
+                aria-pressed={instrument === "guitar"}
+              >
+                Guitar
+              </button>
+              <button
+                onClick={() => setInstrument("piano")}
+                className={`min-h-[36px] rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  instrument === "piano"
+                    ? "bg-[#d7795f] text-white"
+                    : "text-stone-200/70 hover:text-white"
+                }`}
+                aria-label="Show piano chord diagrams"
+                aria-pressed={instrument === "piano"}
+              >
+                Piano
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1 rounded-xl bg-white/5 p-1">
+              <button
+                onClick={() => setViewMode("falling")}
+                className={`min-h-[36px] rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  viewMode === "falling"
+                    ? "bg-[#3242CA] text-white"
+                    : "text-stone-200/70 hover:text-white"
+                }`}
+                aria-label="Falling notes view"
+                aria-pressed={viewMode === "falling"}
+              >
+                Falling
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={`min-h-[36px] rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                  viewMode === "list"
+                    ? "bg-[#3242CA] text-white"
+                    : "text-stone-200/70 hover:text-white"
+                }`}
+                aria-label="List view"
+                aria-pressed={viewMode === "list"}
+              >
+                List
+              </button>
+            </div>
           </div>
 
           <PlaybackControls
@@ -208,6 +296,7 @@ function PlaybackContent() {
               chords={playData.chords}
               currentTime={currentTime + CHORD_OFFSET_SECONDS}
               durationSeconds={durationSeconds}
+              instrument={instrument}
               onSeek={handleSeek}
             />
           ) : (

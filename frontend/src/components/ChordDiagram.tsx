@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import type { Instrument } from "@/lib/instruments";
 
 /**
  * Guitar chord diagram rendered as SVG.
@@ -284,50 +285,200 @@ function lookupVoicing(chordName: string): ChordVoicing | null {
 
 // ── SVG Diagram Component ───────────────────────────────────────────────────
 
-interface ChordDiagramProps {
-  chord: string;
-  /** Width/height in pixels. Diagram maintains aspect ratio. */
-  size?: number;
+interface PianoChordShape {
+  root: string;
+  bass: string | null;
+  tonePitchClasses: number[];
+  toneLabels: string[];
 }
 
-export default function ChordDiagram({ chord, size = 120 }: ChordDiagramProps) {
+const NOTE_TO_PITCH_CLASS: Record<string, number> = {
+  C: 0,
+  "B#": 0,
+  "C#": 1,
+  Db: 1,
+  D: 2,
+  "D#": 3,
+  Eb: 3,
+  E: 4,
+  Fb: 4,
+  F: 5,
+  "E#": 5,
+  "F#": 6,
+  Gb: 6,
+  G: 7,
+  "G#": 8,
+  Ab: 8,
+  A: 9,
+  "A#": 10,
+  Bb: 10,
+  B: 11,
+  Cb: 11,
+};
+
+const SHARP_PITCH_CLASS_NAMES = [
+  "C",
+  "C#",
+  "D",
+  "D#",
+  "E",
+  "F",
+  "F#",
+  "G",
+  "G#",
+  "A",
+  "A#",
+  "B",
+];
+
+const FLAT_PITCH_CLASS_NAMES = [
+  "C",
+  "Db",
+  "D",
+  "Eb",
+  "E",
+  "F",
+  "Gb",
+  "G",
+  "Ab",
+  "A",
+  "Bb",
+  "B",
+];
+
+const PIANO_QUALITY_INTERVALS: Array<[RegExp, number[]]> = [
+  [/^$/, [0, 4, 7]],
+  [/^m$/, [0, 3, 7]],
+  [/^7$/, [0, 4, 7, 10]],
+  [/^m7$/, [0, 3, 7, 10]],
+  [/^maj7$/, [0, 4, 7, 11]],
+  [/^sus2$/, [0, 2, 7]],
+  [/^sus4$/, [0, 5, 7]],
+  [/^5$/, [0, 7]],
+  [/^dim$/, [0, 3, 6]],
+  [/^dim7$/, [0, 3, 6, 9]],
+  [/^aug$/, [0, 4, 8]],
+  [/^add9$/, [0, 4, 7]],
+  [/^m(6|9|11|13)$/, [0, 3, 7, 10]],
+  [/^(6|9|11|13)$/, [0, 4, 7, 10]],
+  [/^maj(9|11|13)$/, [0, 4, 7, 11]],
+  [/^m7b5$/, [0, 3, 6, 10]],
+  [/^m7#5$/, [0, 3, 8, 10]],
+];
+
+const PIANO_WHITE_KEYS = [
+  { note: "C", pitchClass: 0 },
+  { note: "D", pitchClass: 2 },
+  { note: "E", pitchClass: 4 },
+  { note: "F", pitchClass: 5 },
+  { note: "G", pitchClass: 7 },
+  { note: "A", pitchClass: 9 },
+  { note: "B", pitchClass: 11 },
+  { note: "C", pitchClass: 0 },
+];
+
+const PIANO_BLACK_KEYS = [
+  { note: "C#", pitchClass: 1, leftWhiteKey: 0 },
+  { note: "D#", pitchClass: 3, leftWhiteKey: 1 },
+  { note: "F#", pitchClass: 6, leftWhiteKey: 3 },
+  { note: "G#", pitchClass: 8, leftWhiteKey: 4 },
+  { note: "A#", pitchClass: 10, leftWhiteKey: 5 },
+];
+
+function toPitchClass(note: string): number | null {
+  return NOTE_TO_PITCH_CLASS[note] ?? null;
+}
+
+function formatPitchClassName(pitchClass: number, preferFlats: boolean): string {
+  const normalized = ((pitchClass % 12) + 12) % 12;
+  return preferFlats
+    ? FLAT_PITCH_CLASS_NAMES[normalized]
+    : SHARP_PITCH_CLASS_NAMES[normalized];
+}
+
+function getPianoIntervals(quality: string): number[] | null {
+  for (const [pattern, intervals] of PIANO_QUALITY_INTERVALS) {
+    if (pattern.test(quality)) {
+      return intervals;
+    }
+  }
+
+  if (quality.startsWith("maj7")) return [0, 4, 7, 11];
+  if (quality.startsWith("m7")) return [0, 3, 7, 10];
+  if (quality.startsWith("m")) return [0, 3, 7];
+  if (quality.startsWith("7")) return [0, 4, 7, 10];
+  if (quality.startsWith("sus2")) return [0, 2, 7];
+  if (quality.startsWith("sus4")) return [0, 5, 7];
+  if (quality.includes("dim7")) return [0, 3, 6, 9];
+  if (quality.includes("dim")) return [0, 3, 6];
+  if (quality.includes("aug")) return [0, 4, 8];
+  if (quality.includes("add9")) return [0, 4, 7];
+  if (quality.includes("5")) return [0, 7];
+
+  return null;
+}
+
+function simplifyPianoToneLabels(labels: string[]): string[] {
+  return Array.from(new Set(labels)).slice(0, 4);
+}
+
+function lookupPianoShape(chordName: string): PianoChordShape | null {
+  const normalized = normalizeChordName(chordName);
+  if (!normalized) return null;
+
+  const [base, bassRaw] = normalized.split("/", 2);
+  const match = base.match(/^([A-G][#b]?)(.*)$/);
+  if (!match) return null;
+
+  const [, root, quality] = match;
+  const rootPitchClass = toPitchClass(root);
+  if (rootPitchClass === null) return null;
+
+  const intervals = getPianoIntervals(quality);
+  if (!intervals) return null;
+
+  const preferFlats = root.includes("b") || bassRaw?.includes("b") === true;
+  const tonePitchClasses = Array.from(
+    new Set(intervals.map((interval) => (rootPitchClass + interval) % 12))
+  );
+  const toneLabels = simplifyPianoToneLabels(
+    intervals.map((interval) =>
+      formatPitchClassName(rootPitchClass + interval, preferFlats)
+    )
+  );
+
+  return {
+    root,
+    bass: bassRaw && /^[A-G][#b]?$/.test(bassRaw) ? bassRaw : null,
+    tonePitchClasses,
+    toneLabels,
+  };
+}
+
+function GuitarChordDiagram({ chord, size }: { chord: string; size: number }) {
   const voicing = useMemo(() => lookupVoicing(chord), [chord]);
   const normalized = normalizeChordName(chord);
 
   if (!voicing || !normalized) {
-    // Unknown chord - show name only
-    return (
-      <div
-        className="flex flex-col items-center justify-center"
-        style={{ width: size, height: size * 1.25 }}
-      >
-        <p className="text-xs text-zinc-600">No diagram</p>
-        <p className="text-sm font-semibold text-zinc-400">{chord}</p>
-      </div>
-    );
+    return null;
   }
 
-  // SVG coordinate system
   const viewW = 128;
   const viewH = 140;
-  const padL = 24; // symmetric side padding keeps fretboard centered
+  const padL = 24;
   const padR = 24;
-  const padT = 22; // top pad for open/mute indicators
+  const padT = 22;
   const padB = 10;
-  const gridW = viewW - padL - padR; // 80
-  const gridH = viewH - padT - padB; // 108
-  const stringSpacing = gridW / 5; // 6 strings, 5 gaps
-  const fretSpacing = gridH / 5; // 5 frets shown
+  const gridW = viewW - padL - padR;
+  const gridH = viewH - padT - padB;
+  const stringSpacing = gridW / 5;
+  const fretSpacing = gridH / 5;
   const dotR = stringSpacing * 0.3;
 
-  // Determine display frets (normalize to 1-based fret window)
   const activeFrets = voicing.frets.filter((f) => f > 0);
   const minFret = activeFrets.length > 0 ? Math.min(...activeFrets) : 1;
   const maxFret = activeFrets.length > 0 ? Math.max(...activeFrets) : 1;
 
-  // Determine which fret to start the 5-fret display window from.
-  // If baseFret is 1 (open position) but all fretted notes are above fret 5,
-  // shift the window so they're visible.
   let displayBaseFret = voicing.baseFret;
   if (maxFret > 5 && voicing.baseFret === 1) {
     displayBaseFret = minFret;
@@ -348,7 +499,6 @@ export default function ChordDiagram({ chord, size = 120 }: ChordDiagramProps) {
       role="img"
       aria-label={`${chord} guitar chord diagram`}
     >
-      {/* Nut (thick line at top) if open position */}
       {displayBaseFret === 1 ? (
         <line
           x1={padL}
@@ -359,21 +509,18 @@ export default function ChordDiagram({ chord, size = 120 }: ChordDiagramProps) {
           strokeWidth={1}
         />
       ) : (
-        <>
-          <text
-            x={-2}
-            y={padT + fretSpacing / 2 + 3.5}
-            textAnchor="start"
-            fontSize={12}
-            fontWeight={800}
-            fill="#fafafa"
-          >
-            {displayBaseFret}fr
-          </text>
-        </>
+        <text
+          x={-2}
+          y={padT + fretSpacing / 2 + 3.5}
+          textAnchor="start"
+          fontSize={12}
+          fontWeight={800}
+          fill="#fafafa"
+        >
+          {displayBaseFret}fr
+        </text>
       )}
 
-      {/* Fret lines */}
       {Array.from({ length: 6 }, (_, i) => (
         <line
           key={`fret-${i}`}
@@ -386,7 +533,6 @@ export default function ChordDiagram({ chord, size = 120 }: ChordDiagramProps) {
         />
       ))}
 
-      {/* String lines */}
       {Array.from({ length: 6 }, (_, i) => (
         <line
           key={`string-${i}`}
@@ -399,11 +545,9 @@ export default function ChordDiagram({ chord, size = 120 }: ChordDiagramProps) {
         />
       ))}
 
-      {/* Barre indicators */}
       {voicing.barres?.map((barreFret) => {
         const relFret = barreFret - displayBaseFret + 1;
         if (relFret < 1 || relFret > 5) return null;
-        // Find the range of strings that the barre covers
         const barreStrings = voicing.frets
           .map((f, i) => (f >= barreFret ? i : -1))
           .filter((i) => i >= 0);
@@ -424,12 +568,10 @@ export default function ChordDiagram({ chord, size = 120 }: ChordDiagramProps) {
         );
       })}
 
-      {/* Finger dots + open/muted indicators */}
       {voicing.frets.map((fret, stringIdx) => {
         const x = stringX(stringIdx);
 
         if (fret === -1) {
-          // Muted string: X above
           return (
             <text
               key={`m-${stringIdx}`}
@@ -446,7 +588,6 @@ export default function ChordDiagram({ chord, size = 120 }: ChordDiagramProps) {
         }
 
         if (fret === 0) {
-          // Open string: O above
           return (
             <circle
               key={`o-${stringIdx}`}
@@ -460,16 +601,9 @@ export default function ChordDiagram({ chord, size = 120 }: ChordDiagramProps) {
           );
         }
 
-        // Fretted note: dot on the grid
         const relFret = fret - displayBaseFret + 1;
         if (relFret < 1 || relFret > 5) return null;
         const y = fretY(relFret) - fretSpacing / 2;
-
-        // Don't draw individual dot if this string+fret is covered by a barre
-        const isBarre = voicing.barres?.includes(fret);
-        if (isBarre && fret === Math.min(...(voicing.barres ?? []))) {
-          // This is the barre fret, the rect handles it - but still draw the dot
-        }
 
         return (
           <circle
@@ -482,6 +616,131 @@ export default function ChordDiagram({ chord, size = 120 }: ChordDiagramProps) {
         );
       })}
     </svg>
+  );
+}
+
+function PianoChordDiagram({ chord, size }: { chord: string; size: number }) {
+  const shape = useMemo(() => lookupPianoShape(chord), [chord]);
+
+  if (!shape) {
+    return null;
+  }
+
+  const whiteKeyWidth = 24;
+  const whiteKeyHeight = 96;
+  const blackKeyWidth = 14;
+  const blackKeyHeight = 56;
+  const viewW = PIANO_WHITE_KEYS.length * whiteKeyWidth;
+  const viewH = 142;
+  const activePitchClasses = new Set(shape.tonePitchClasses);
+  const rootPitchClass = toPitchClass(shape.root);
+
+  return (
+    <svg
+      viewBox={`0 0 ${viewW} ${viewH}`}
+      width={size}
+      height={size * (viewH / viewW)}
+      role="img"
+      aria-label={`${chord} piano chord diagram`}
+    >
+      <text
+        x={viewW / 2}
+        y={15}
+        textAnchor="middle"
+        fontSize={12}
+        fontWeight={700}
+        fill="#e7e5e4"
+      >
+        {shape.toneLabels.join(" - ")}
+        {shape.bass ? `  bass ${shape.bass}` : ""}
+      </text>
+
+      <g transform="translate(0 28)">
+        {PIANO_WHITE_KEYS.map((key, index) => {
+          const isActive = activePitchClasses.has(key.pitchClass);
+          const isRoot = key.pitchClass === rootPitchClass;
+
+          return (
+            <g key={`${key.note}-${index}`}>
+              <rect
+                x={index * whiteKeyWidth}
+                y={0}
+                width={whiteKeyWidth}
+                height={whiteKeyHeight}
+                rx={2}
+                fill={isRoot ? "#7b2f55" : isActive ? "#2f4f8f" : "#f5f3f0"}
+                stroke="#1c1917"
+                strokeWidth={1}
+              />
+              <text
+                x={index * whiteKeyWidth + whiteKeyWidth / 2}
+                y={whiteKeyHeight - 10}
+                textAnchor="middle"
+                fontSize={9}
+                fontWeight={700}
+                fill={isActive ? "#fff8f4" : "#44403c"}
+              >
+                {key.note}
+              </text>
+            </g>
+          );
+        })}
+
+        {PIANO_BLACK_KEYS.map((key, index) => {
+          const isActive = activePitchClasses.has(key.pitchClass);
+          const isRoot = key.pitchClass === rootPitchClass;
+
+          return (
+            <rect
+              key={`${key.note}-${index}`}
+              x={(key.leftWhiteKey + 1) * whiteKeyWidth - blackKeyWidth / 2}
+              y={0}
+              width={blackKeyWidth}
+              height={blackKeyHeight}
+              rx={2}
+              fill={isRoot ? "#7b2f55" : isActive ? "#2f4f8f" : "#111827"}
+              stroke="#0a0a0a"
+              strokeWidth={1}
+            />
+          );
+        })}
+      </g>
+    </svg>
+  );
+}
+
+interface ChordDiagramProps {
+  chord: string;
+  instrument?: Instrument;
+  /** Width/height in pixels. Diagram maintains aspect ratio. */
+  size?: number;
+}
+
+export default function ChordDiagram({
+  chord,
+  instrument = "guitar",
+  size = 120,
+}: ChordDiagramProps) {
+  const normalized = normalizeChordName(chord);
+  const guitarVoicing = useMemo(() => lookupVoicing(chord), [chord]);
+  const pianoShape = useMemo(() => lookupPianoShape(chord), [chord]);
+
+  if (!normalized || (instrument === "guitar" ? !guitarVoicing : !pianoShape)) {
+    return (
+      <div
+        className="flex flex-col items-center justify-center"
+        style={{ width: size, height: instrument === "piano" ? size * 0.9 : size * 1.25 }}
+      >
+        <p className="text-xs text-zinc-600">No {instrument} diagram</p>
+        <p className="text-sm font-semibold text-zinc-400">{chord}</p>
+      </div>
+    );
+  }
+
+  return instrument === "piano" ? (
+    <PianoChordDiagram chord={chord} size={size} />
+  ) : (
+    <GuitarChordDiagram chord={chord} size={size} />
   );
 }
 
