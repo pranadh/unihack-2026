@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useCallback, useEffect, Suspense } from "react";
+import { useState, useCallback, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import YouTubePlayer from "@/components/YouTubePlayer";
+import type { YouTubePlayerHandle } from "@/components/YouTubePlayer";
+import FallingChords from "@/components/FallingChords";
 import ChordTimeline from "@/components/ChordTimeline";
 import PlaybackControls from "@/components/PlaybackControls";
 import type { ChordEvent } from "@/lib/api";
@@ -14,17 +16,23 @@ interface PlayData {
   chords: ChordEvent[];
   duration?: number;
   bpm?: number;
+  variable_tempo?: boolean;
+  title?: string;
 }
+
+type ViewMode = "falling" | "list";
 
 function PlaybackContent() {
   const searchParams = useSearchParams();
   const videoId = searchParams.get("v");
 
+  const playerRef = useRef<YouTubePlayerHandle>(null);
   const [playData, setPlayData] = useState<PlayData | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>("falling");
 
   useEffect(() => {
     try {
@@ -56,9 +64,8 @@ function PlaybackContent() {
     setCurrentTime(time);
   }, []);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleSeek = useCallback((_time: number) => {
-    // TODO: wire up seek via player ref forwarding
+  const handleSeek = useCallback((time: number) => {
+    playerRef.current?.seekTo(time);
   }, []);
 
   if (loading) {
@@ -120,9 +127,9 @@ function PlaybackContent() {
       {/* Title bar */}
       <div className="border-b border-zinc-800 px-4 py-3">
         <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <div>
-            <h1 className="text-lg font-semibold text-white">
-              Playback Workspace
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-lg font-semibold text-white">
+              {playData.title ?? "Playback Workspace"}
             </h1>
             <div className="flex items-center gap-3">
               <p className="text-xs text-zinc-500">
@@ -130,11 +137,40 @@ function PlaybackContent() {
               </p>
               {playData.bpm ? (
                 <span className="rounded bg-violet-600/20 px-1.5 py-0.5 text-xs font-medium text-violet-400">
-                  {Math.round(playData.bpm)} BPM
+                  {Math.round(playData.bpm)} BPM{playData.variable_tempo ? " (variable)" : ""}
                 </span>
               ) : null}
             </div>
           </div>
+
+          {/* View mode toggle */}
+          <div className="mx-4 flex items-center gap-1 rounded-lg bg-zinc-800/50 p-1">
+            <button
+              onClick={() => setViewMode("falling")}
+              className={`min-h-[36px] rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                viewMode === "falling"
+                  ? "bg-violet-600 text-white"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+              aria-label="Falling notes view"
+              aria-pressed={viewMode === "falling"}
+            >
+              Falling
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              className={`min-h-[36px] rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                viewMode === "list"
+                  ? "bg-violet-600 text-white"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+              aria-label="List view"
+              aria-pressed={viewMode === "list"}
+            >
+              List
+            </button>
+          </div>
+
           <PlaybackControls
             playbackRate={playbackRate}
             onPlaybackRateChange={setPlaybackRate}
@@ -147,20 +183,30 @@ function PlaybackContent() {
         {/* Video player */}
         <div className="flex-1 lg:flex-[2]">
           <YouTubePlayer
+            ref={playerRef}
             videoId={playData.videoId}
             onTimeUpdate={handleTimeUpdate}
             playbackRate={playbackRate}
           />
         </div>
 
-        {/* Chord timeline sidebar */}
+        {/* Chord panel (falling or list view) */}
         <div className="flex h-[calc(100vh-12rem)] flex-col rounded-lg border border-zinc-800 bg-zinc-900/50 lg:flex-1">
-          <ChordTimeline
-            chords={playData.chords}
-            currentTime={currentTime}
-            durationSeconds={durationSeconds}
-            onSeek={handleSeek}
-          />
+          {viewMode === "falling" ? (
+            <FallingChords
+              chords={playData.chords}
+              currentTime={currentTime}
+              durationSeconds={durationSeconds}
+              onSeek={handleSeek}
+            />
+          ) : (
+            <ChordTimeline
+              chords={playData.chords}
+              currentTime={currentTime}
+              durationSeconds={durationSeconds}
+              onSeek={handleSeek}
+            />
+          )}
         </div>
       </div>
     </div>
