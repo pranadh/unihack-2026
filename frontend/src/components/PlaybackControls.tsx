@@ -13,7 +13,7 @@ export default function PlaybackControls({
 }: PlaybackControlsProps) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-zinc-500">Speed:</span>
+      <span className="text-xs text-blue-100/65">Speed:</span>
       <div className="flex gap-1">
         {RATES.map((rate) => (
           <button
@@ -21,8 +21,8 @@ export default function PlaybackControls({
             onClick={() => onPlaybackRateChange(rate)}
             className={`min-w-[44px] min-h-[44px] rounded-md px-2 py-1 text-sm font-medium transition-colors ${
               playbackRate === rate
-                ? "bg-violet-600 text-white"
-                : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
+                ? "bg-[#3242CA] text-white"
+                : "bg-blue-950/60 text-blue-100/75 hover:bg-blue-900/70 hover:text-white"
             }`}
             aria-label={`Set playback speed to ${rate}x`}
             aria-pressed={playbackRate === rate}

@@ -18,18 +18,18 @@ const STATUS_CONFIG: Record<
 > = {
   queued: {
     label: "Queued",
-    color: "text-yellow-400",
-    bgColor: "bg-yellow-400/10 border-yellow-400/20",
+    color: "text-blue-100",
+    bgColor: "bg-blue-300/10 border-blue-300/25",
   },
   processing: {
     label: "Processing",
-    color: "text-blue-400",
-    bgColor: "bg-blue-400/10 border-blue-400/20",
+    color: "text-blue-100",
+    bgColor: "bg-blue-300/10 border-blue-300/25",
   },
   complete: {
     label: "Complete",
-    color: "text-green-400",
-    bgColor: "bg-green-400/10 border-green-400/20",
+    color: "text-blue-100",
+    bgColor: "bg-blue-300/10 border-blue-300/25",
   },
   failed: {
     label: "Failed",
@@ -51,7 +51,7 @@ export default function StatusPanel({ request, onRetry }: StatusPanelProps) {
         <div className="flex items-center gap-3">
           {(request.status === "queued" || request.status === "processing") && (
             <svg
-              className="h-5 w-5 animate-spin text-blue-400"
+              className="h-5 w-5 animate-spin text-blue-100"
               viewBox="0 0 24 24"
               fill="none"
             >
@@ -74,7 +74,7 @@ export default function StatusPanel({ request, onRetry }: StatusPanelProps) {
             <p className={`text-sm font-semibold ${config.color}`}>
               {config.label}
             </p>
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-blue-100/65">
               Request ID: {request.id.slice(0, 12)}...
             </p>
           </div>
@@ -97,7 +97,7 @@ export default function StatusPanel({ request, onRetry }: StatusPanelProps) {
       )}
 
       {request.status === "processing" && (
-        <p className="mt-2 text-sm text-blue-300/80">
+        <p className="mt-2 text-sm text-blue-100/85">
           Extracting chords from video... This may take up to 60 seconds.
         </p>
       )}

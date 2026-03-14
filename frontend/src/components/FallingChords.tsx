@@ -47,18 +47,14 @@ interface ChordColors {
 }
 
 const COLOR_PALETTE: ChordColors[] = [
-  { bg: "139,92,246",  border: "#a78bfa", text: "#ddd6fe" },   // violet
-  { bg: "59,130,246",  border: "#60a5fa", text: "#bfdbfe" },   // blue
-  { bg: "16,185,129",  border: "#34d399", text: "#a7f3d0" },   // emerald
-  { bg: "245,158,11",  border: "#fbbf24", text: "#fde68a" },   // amber
-  { bg: "244,63,94",   border: "#fb7185", text: "#fecdd3" },   // rose
-  { bg: "6,182,212",   border: "#22d3ee", text: "#a5f3fc" },   // cyan
-  { bg: "217,70,239",  border: "#e879f9", text: "#f5d0fe" },   // fuchsia
-  { bg: "132,204,22",  border: "#a3e635", text: "#d9f99d" },   // lime
-  { bg: "249,115,22",  border: "#fb923c", text: "#fed7aa" },   // orange
-  { bg: "20,184,166",  border: "#2dd4bf", text: "#99f6e4" },   // teal
-  { bg: "236,72,153",  border: "#f472b6", text: "#fbcfe8" },   // pink
-  { bg: "99,102,241",  border: "#818cf8", text: "#c7d2fe" },   // indigo
+  { bg: "50,66,202", border: "#6f7ff0", text: "#dce5ff" },
+  { bg: "59,130,246", border: "#60a5fa", text: "#dbeafe" },
+  { bg: "14,116,144", border: "#22d3ee", text: "#cffafe" },
+  { bg: "30,64,175", border: "#93c5fd", text: "#dbeafe" },
+  { bg: "37,99,235", border: "#93c5fd", text: "#dbeafe" },
+  { bg: "3,105,161", border: "#7dd3fc", text: "#e0f2fe" },
+  { bg: "15,23,42", border: "#60a5fa", text: "#bfdbfe" },
+  { bg: "67,56,202", border: "#a5b4fc", text: "#e0e7ff" },
 ];
 
 /** Assign a consistent color set to each unique chord name */
@@ -269,7 +265,7 @@ export default function FallingChords({
 
   if (chords.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center text-zinc-500">
+      <div className="flex h-full items-center justify-center text-blue-100/55">
         No chords detected
       </div>
     );
@@ -280,43 +276,43 @@ export default function FallingChords({
   return (
     <div className="flex h-full flex-col">
       {/* Top: prioritize current + next chord visibility */}
-      <div className="border-b border-zinc-700/50 px-3 py-3 sm:px-4">
+      <div className="border-b border-blue-300/20 px-3 py-3 sm:px-4">
         <div className="flex items-stretch justify-center gap-2 sm:gap-3">
-          <div className="flex min-w-0 flex-1 max-w-[260px] flex-col items-center rounded-lg border border-violet-500/30 bg-violet-500/10 px-2 py-2">
-            <p className="text-[10px] uppercase tracking-wider text-violet-300">Now</p>
-            <p className="truncate text-3xl font-bold text-violet-300">
+          <div className="flex min-w-0 flex-1 max-w-[260px] flex-col items-center rounded-lg border border-blue-300/35 bg-[#3242CA]/20 px-2 py-2">
+            <p className="text-[10px] uppercase tracking-wider text-blue-100/80">Now</p>
+            <p className="truncate text-3xl font-bold text-blue-100">
               {activeChord && activeChord.chord !== "N" ? activeChord.chord : "--"}
             </p>
             {activeChord && activeChord.chord !== "N" ? (
               <ChordDiagram chord={activeChord.chord} size={112} />
             ) : (
               <div className="flex h-[140px] w-[112px] items-center justify-center">
-                <span className="text-2xl text-zinc-600">--</span>
+                <span className="text-2xl text-blue-100/45">--</span>
               </div>
             )}
           </div>
 
-          <div className="flex min-w-0 flex-1 max-w-[260px] flex-col items-center rounded-lg border border-zinc-600/50 bg-zinc-800/60 px-2 py-2">
-            <p className="text-[10px] uppercase tracking-wider text-zinc-400">Next</p>
-            <p className="truncate text-3xl font-bold text-zinc-100">
+          <div className="flex min-w-0 flex-1 max-w-[260px] flex-col items-center rounded-lg border border-blue-300/20 bg-blue-950/45 px-2 py-2">
+            <p className="text-[10px] uppercase tracking-wider text-blue-100/60">Next</p>
+            <p className="truncate text-3xl font-bold text-blue-50">
               {nextChord ? nextChord.chord : "--"}
             </p>
             {nextChord ? (
               <ChordDiagram chord={nextChord.chord} size={100} />
             ) : (
               <div className="flex h-[125px] w-[100px] items-center justify-center">
-                <span className="text-2xl text-zinc-700">--</span>
+                <span className="text-2xl text-blue-100/35">--</span>
               </div>
             )}
           </div>
         </div>
 
         <div className="mt-2 flex items-center justify-center gap-2 text-xs sm:text-sm">
-          <span className="font-medium text-zinc-300">
+          <span className="font-medium text-blue-100/80">
             {formatTime(currentTime)} / {formatTime(durationSeconds)}
           </span>
           {nextChord ? (
-            <span className="text-zinc-500">
+            <span className="text-blue-100/50">
               in {Math.max(0, nextChord.start - currentTime).toFixed(1)}s
             </span>
           ) : null}
@@ -326,12 +322,12 @@ export default function FallingChords({
       {/* Rising notes lane */}
       <div
         ref={containerRef}
-        className="relative flex-1 overflow-hidden bg-zinc-950/80"
+        className="relative flex-1 overflow-hidden bg-[#060d1f]/80"
       >
         {/* Background lane lines (subtle grid) */}
         <div className="absolute inset-0 pointer-events-none">
           {/* Vertical center line */}
-          <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-zinc-800/50" />
+          <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-blue-300/20" />
           {/* Horizontal timing guides (look-ahead below hit line) */}
           {Array.from({ length: LOOK_AHEAD_SECONDS }, (_, i) => {
             const belowHitLine = containerHeight - hitLineY;
@@ -339,7 +335,7 @@ export default function FallingChords({
             return (
               <div
                 key={`guide-${i}`}
-                className="absolute left-0 right-0 h-px bg-zinc-800/30"
+                className="absolute left-0 right-0 h-px bg-blue-300/15"
                 style={{ top: y }}
               />
             );
@@ -351,7 +347,7 @@ export default function FallingChords({
           className="absolute left-0 right-0 z-10 flex items-center"
           style={{ top: hitLineY - 1 }}
         >
-          <div className="h-[2px] w-full bg-violet-500/80 shadow-[0_0_8px_rgba(139,92,246,0.5)]" />
+          <div className="h-[2px] w-full bg-blue-300/80 shadow-[0_0_8px_rgba(147,197,253,0.45)]" />
         </div>
 
         {/* Hit zone glow */}
@@ -361,7 +357,7 @@ export default function FallingChords({
             top: hitLineY - 20,
             height: 40,
             background:
-              "linear-gradient(to bottom, transparent, rgba(139,92,246,0.08), transparent)",
+              "linear-gradient(to bottom, transparent, rgba(147,197,253,0.12), transparent)",
           }}
         />
 
@@ -382,7 +378,7 @@ export default function FallingChords({
                 data-end={chord.end}
                 className={`absolute left-2 right-2 z-20 flex items-center justify-center rounded-lg border-l-4 will-change-transform ${
                   isActive
-                    ? "ring-2 ring-violet-400/60 shadow-lg shadow-violet-500/20"
+                    ? "ring-2 ring-blue-200/60 shadow-lg shadow-blue-400/20"
                     : isPast
                       ? "opacity-40"
                       : ""
@@ -401,7 +397,7 @@ export default function FallingChords({
                 >
                   {chord.chord}
                 </span>
-                <span className="ml-2 text-[11px] text-zinc-500">
+                <span className="ml-2 text-[11px] text-blue-100/50">
                   {formatTime(chord.start)}
                 </span>
               </button>
@@ -412,7 +408,7 @@ export default function FallingChords({
         {/* "Now" timestamp at hit line */}
         <div
           ref={nowLabelRef}
-          className="absolute left-1 z-10 text-[10px] font-mono text-violet-400/60 pointer-events-none"
+          className="absolute left-1 z-10 text-[10px] font-mono text-blue-200/70 pointer-events-none"
           style={{ top: Math.max(0, hitLineY - 14) }}
         >
           {formatTime(currentTime)}

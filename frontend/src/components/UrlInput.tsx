@@ -39,7 +39,7 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-2xl">
       <div className="flex flex-col gap-3">
-        <label htmlFor="youtube-url" className="text-sm font-medium text-zinc-300">
+        <label htmlFor="youtube-url" className="text-sm font-medium text-blue-100/85">
           YouTube URL
         </label>
         <div className="flex gap-2">
@@ -52,7 +52,7 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
               if (error) validate(e.target.value);
             }}
             placeholder="https://youtube.com/watch?v=..."
-            className="flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3 text-base text-white placeholder-zinc-500 outline-none transition-colors focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+            className="flex-1 rounded-lg border border-blue-300/25 bg-blue-950/45 px-4 py-3 text-base text-white placeholder-blue-100/45 outline-none transition-colors focus:border-[#4f5de0] focus:ring-1 focus:ring-[#4f5de0]"
             disabled={isLoading}
             aria-describedby={error ? "url-error" : undefined}
             aria-invalid={error ? "true" : "false"}
@@ -60,7 +60,7 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
           <button
             type="submit"
             disabled={isLoading}
-            className="rounded-lg bg-violet-600 px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 focus:ring-offset-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg bg-[#3242CA] px-6 py-3 text-base font-semibold text-white transition-colors hover:bg-[#2b3ab2] focus:outline-none focus:ring-2 focus:ring-[#4f5de0] focus:ring-offset-2 focus:ring-offset-[#0a132b] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoading ? (
               <span className="flex items-center gap-2">
@@ -91,7 +91,7 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
           </button>
         </div>
         {error && (
-          <p id="url-error" className="text-sm text-red-400" role="alert">
+          <p id="url-error" className="text-sm text-red-100" role="alert">
             {error}
           </p>
         )}

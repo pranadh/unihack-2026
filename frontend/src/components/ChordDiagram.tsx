@@ -427,7 +427,7 @@ export default function ChordDiagram({ chord, size = 120 }: ChordDiagramProps) {
             width={stringX(lastString) - stringX(firstString) + dotR * 2}
             height={dotR * 2}
             rx={dotR}
-            fill="#8b5cf6"
+            fill="#4f5de0"
           />
         );
       })}
@@ -485,7 +485,7 @@ export default function ChordDiagram({ chord, size = 120 }: ChordDiagramProps) {
             cx={x}
             cy={y}
             r={dotR}
-            fill="#8b5cf6"
+            fill="#4f5de0"
           />
         );
       })}
