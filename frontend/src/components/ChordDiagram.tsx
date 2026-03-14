@@ -196,7 +196,7 @@ const CHORD_DB: Record<string, ChordVoicing> = {
  *  - No-chord tokens: "N", "NC", "X" -> ""
  */
 function normalizeChordName(raw: string): string {
-  let name = raw.trim();
+  const name = raw.trim();
   // Handle "N" (no chord) or empty
   if (!name || name === "N" || name === "NC" || name === "X") return "";
 
@@ -357,15 +357,28 @@ export default function ChordDiagram({ chord, size = 120 }: ChordDiagramProps) {
           strokeWidth={3}
         />
       ) : (
-        <text
-          x={padL - 6}
-          y={padT + fretSpacing / 2 + 4}
-          textAnchor="end"
-          fontSize={10}
-          fill="#a1a1aa"
-        >
-          {displayBaseFret}fr
-        </text>
+        <>
+          <rect
+            x={1}
+            y={padT + fretSpacing / 2 - 8}
+            width={16}
+            height={14}
+            rx={3}
+            fill="#27272a"
+            stroke="#71717a"
+            strokeWidth={1}
+          />
+          <text
+            x={9}
+            y={padT + fretSpacing / 2 + 2}
+            textAnchor="middle"
+            fontSize={9}
+            fontWeight={700}
+            fill="#f4f4f5"
+          >
+            {displayBaseFret}
+          </text>
+        </>
       )}
 
       {/* Fret lines */}

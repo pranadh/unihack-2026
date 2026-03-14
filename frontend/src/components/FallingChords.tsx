@@ -279,48 +279,47 @@ export default function FallingChords({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Top: Current chord info + diagram */}
-      <div className="flex items-center gap-4 border-b border-zinc-700/50 px-4 py-3">
-        {/* Current chord diagram */}
-        <div className="flex flex-col items-center">
-          {activeChord && activeChord.chord !== "N" ? (
-            <ChordDiagram chord={activeChord.chord} size={100} />
-          ) : (
-            <div className="flex h-[125px] w-[100px] items-center justify-center">
-              <span className="text-2xl text-zinc-600">--</span>
-            </div>
-          )}
-        </div>
-
-        {/* Current + next chord labels */}
-        <div className="flex flex-1 flex-col gap-1">
-          <p className="text-xs uppercase tracking-wider text-zinc-500">Now Playing</p>
-          <p className="text-3xl font-bold text-violet-400">
-            {activeChord && activeChord.chord !== "N" ? activeChord.chord : "--"}
-          </p>
-          <p className="mt-1 text-sm text-zinc-500">
-            {formatTime(currentTime)} / {formatTime(durationSeconds)}
-          </p>
-          {nextChord && (
-            <p className="text-xs text-zinc-500">
-              Next: <span className="font-semibold text-zinc-300">{nextChord.chord}</span>
-              <span className="ml-1 text-zinc-600">
-                ({Math.max(0, nextChord.start - currentTime).toFixed(1)}s)
-              </span>
+      {/* Top: prioritize current + next chord visibility */}
+      <div className="border-b border-zinc-700/50 px-3 py-3 sm:px-4">
+        <div className="flex items-stretch justify-center gap-2 sm:gap-3">
+          <div className="flex min-w-0 flex-1 max-w-[260px] flex-col items-center rounded-lg border border-violet-500/30 bg-violet-500/10 px-2 py-2">
+            <p className="text-[10px] uppercase tracking-wider text-violet-300">Now</p>
+            <p className="truncate text-3xl font-bold text-violet-300">
+              {activeChord && activeChord.chord !== "N" ? activeChord.chord : "--"}
             </p>
-          )}
+            {activeChord && activeChord.chord !== "N" ? (
+              <ChordDiagram chord={activeChord.chord} size={112} />
+            ) : (
+              <div className="flex h-[140px] w-[112px] items-center justify-center">
+                <span className="text-2xl text-zinc-600">--</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex min-w-0 flex-1 max-w-[260px] flex-col items-center rounded-lg border border-zinc-600/50 bg-zinc-800/60 px-2 py-2">
+            <p className="text-[10px] uppercase tracking-wider text-zinc-400">Next</p>
+            <p className="truncate text-3xl font-bold text-zinc-100">
+              {nextChord ? nextChord.chord : "--"}
+            </p>
+            {nextChord ? (
+              <ChordDiagram chord={nextChord.chord} size={100} />
+            ) : (
+              <div className="flex h-[125px] w-[100px] items-center justify-center">
+                <span className="text-2xl text-zinc-700">--</span>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Next chord diagram (smaller) */}
-        <div className="flex flex-col items-center">
-          <p className="mb-1 text-[10px] uppercase tracking-wider text-zinc-600">Next</p>
+        <div className="mt-2 flex items-center justify-center gap-2 text-xs sm:text-sm">
+          <span className="font-medium text-zinc-300">
+            {formatTime(currentTime)} / {formatTime(durationSeconds)}
+          </span>
           {nextChord ? (
-            <ChordDiagram chord={nextChord.chord} size={70} />
-          ) : (
-            <div className="flex h-[87px] w-[70px] items-center justify-center">
-              <span className="text-lg text-zinc-700">--</span>
-            </div>
-          )}
+            <span className="text-zinc-500">
+              in {Math.max(0, nextChord.start - currentTime).toFixed(1)}s
+            </span>
+          ) : null}
         </div>
       </div>
 
