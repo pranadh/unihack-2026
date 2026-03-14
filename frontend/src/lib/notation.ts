@@ -44,7 +44,10 @@ const MINOR_ROMANS = ["i", "bII", "ii", "III", "#III", "iv", "#iv", "v", "VI", "
 const MAJOR_SCALE_DEGREES = new Set([0, 2, 4, 5, 7, 9, 11]);
 const MINOR_SCALE_DEGREES = new Set([0, 2, 3, 5, 7, 8, 10]);
 
-const WINDOW_SECONDS = 12;
+const WINDOW_SECONDS = 20;
+const MIN_KEY_CHANGE_CHORDS = 3;
+const MIN_KEY_CHANGE_SECONDS = 10;
+
 export function buildChordDisplaySegments(chords: ChordEvent[]): ChordDisplaySegment[] {
   const tonalChords = chords.filter((chord) => parseChordName(chord.chord) !== null);
   if (tonalChords.length === 0) {
@@ -52,13 +55,51 @@ export function buildChordDisplaySegments(chords: ChordEvent[]): ChordDisplaySeg
   }
 
   const analyses = tonalChords.map((_, index) => analyzeWindow(tonalChords, index));
+  const firstAnalysis = analyses.find((analysis): analysis is CandidateKey => analysis !== null);
+  if (!firstAnalysis) {
+    return [];
+  }
+
+  const smoothedAnalyses: CandidateKey[] = Array.from({ length: tonalChords.length }, () => firstAnalysis);
+  let currentKey = firstAnalysis;
+  let pendingChange: { candidate: CandidateKey; startIndex: number; count: number } | null = null;
+
+  for (let i = 0; i < tonalChords.length; i++) {
+    const analysis = analyses[i] ?? currentKey;
+
+    if (sameKey(analysis, currentKey)) {
+      pendingChange = null;
+      smoothedAnalyses[i] = currentKey;
+      continue;
+    }
+
+    if (pendingChange && sameKey(pendingChange.candidate, analysis)) {
+      pendingChange.count += 1;
+    } else {
+      pendingChange = { candidate: analysis, startIndex: i, count: 1 };
+    }
+
+    const pendingDuration =
+      tonalChords[i].end - tonalChords[pendingChange.startIndex].start;
+    const shouldCommitChange =
+      pendingChange.count >= MIN_KEY_CHANGE_CHORDS ||
+      pendingDuration >= MIN_KEY_CHANGE_SECONDS;
+
+    if (shouldCommitChange) {
+      currentKey = pendingChange.candidate;
+      for (let j = pendingChange.startIndex; j <= i; j++) {
+        smoothedAnalyses[j] = currentKey;
+      }
+      pendingChange = null;
+    } else {
+      smoothedAnalyses[i] = currentKey;
+    }
+  }
+
   const segments: ChordDisplaySegment[] = [];
 
   for (let i = 0; i < tonalChords.length; i++) {
-    const analysis = analyses[i];
-    if (!analysis) {
-      continue;
-    }
+    const analysis = smoothedAnalyses[i];
 
     const current = {
       start: tonalChords[i].start,
@@ -81,6 +122,10 @@ export function buildChordDisplaySegments(chords: ChordEvent[]): ChordDisplaySeg
   }
 
   return segments;
+}
+
+function sameKey(a: CandidateKey, b: CandidateKey): boolean {
+  return a.rootPc === b.rootPc && a.isMinor === b.isMinor;
 }
 
 function analyzeWindow(chords: ChordEvent[], centerIndex: number): CandidateKey | null {
