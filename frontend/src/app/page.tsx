@@ -1,104 +1,58 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import UrlInput from "@/components/UrlInput";
-import StatusPanel from "@/components/StatusPanel";
-import {
-  submitRequest,
-  getRequestStatus,
-  retryRequest,
-  type SongRequest,
-} from "@/lib/api";
+import { recognizeChords } from "@/lib/api";
 
 export default function Home() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [request, setRequest] = useState<SongRequest | null>(null);
+  const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState("");
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Clean up polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
-    };
-  }, []);
-
-  const startPolling = useCallback(
-    (requestId: string) => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
-
-      pollingRef.current = setInterval(async () => {
-        try {
-          const status = await getRequestStatus(requestId);
-          setRequest(status);
-
-          if (status.status === "complete") {
-            if (pollingRef.current) clearInterval(pollingRef.current);
-            pollingRef.current = null;
-            // Navigate to playback page
-            router.push(`/play?id=${requestId}`);
-          } else if (status.status === "failed") {
-            if (pollingRef.current) clearInterval(pollingRef.current);
-            pollingRef.current = null;
-            setIsLoading(false);
-          }
-        } catch {
-          // Continue polling on transient errors
-        }
-      }, 2000);
-    },
-    [router]
-  );
 
   const handleSubmit = useCallback(
     async (url: string) => {
       setIsLoading(true);
       setError("");
-      setRequest(null);
+      setStatusMessage("Downloading audio and extracting chords... This may take up to 2 minutes.");
 
       try {
-        const result = await submitRequest(url);
-        setRequest(result);
+        const result = await recognizeChords(url);
 
-        if (result.status === "complete") {
-          // Already processed, go straight to playback
-          router.push(`/play?id=${result.id}`);
+        if (!result.chords || result.chords.length === 0) {
+          setError("No chords detected in this video. Try a different song.");
+          setIsLoading(false);
+          setStatusMessage("");
           return;
         }
 
-        // Start polling for status
-        startPolling(result.id);
+        // Store result in sessionStorage so the play page can read it
+        const videoIdMatch = url.match(
+          /(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/
+        );
+        const videoId = videoIdMatch?.[1] ?? "";
+
+        const playData = {
+          videoId,
+          youtubeUrl: url,
+          chords: result.chords,
+          duration: result.duration,
+        };
+        sessionStorage.setItem("karachordy-play", JSON.stringify(playData));
+
+        // Navigate to playback
+        router.push(`/play?v=${videoId}`);
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Failed to submit request"
+          err instanceof Error ? err.message : "Failed to process request"
         );
         setIsLoading(false);
+        setStatusMessage("");
       }
     },
-    [router, startPolling]
+    [router]
   );
-
-  const handleRetry = useCallback(async () => {
-    if (!request) return;
-
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const result = await retryRequest(request.id);
-      setRequest({
-        ...request,
-        status: result.status as SongRequest["status"],
-        errorMessage: null,
-      });
-      startPolling(request.id);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Retry failed");
-      setIsLoading(false);
-    }
-  }, [request, startPolling]);
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-center bg-zinc-950 px-4">
@@ -116,13 +70,18 @@ export default function Home() {
         {/* URL Input */}
         <UrlInput onSubmit={handleSubmit} isLoading={isLoading} />
 
-        {/* Status */}
-        {request && (
-          <StatusPanel request={request} onRetry={handleRetry} />
+        {/* Processing status */}
+        {statusMessage && (
+          <div className="w-full max-w-2xl rounded-lg border border-blue-500/20 bg-blue-500/10 p-4">
+            <div className="flex items-center gap-3">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
+              <p className="text-sm text-blue-300">{statusMessage}</p>
+            </div>
+          </div>
         )}
 
         {/* Error */}
-        {error && !request && (
+        {error && (
           <div className="w-full max-w-2xl rounded-lg border border-red-500/20 bg-red-500/10 p-4">
             <p className="text-sm text-red-400">{error}</p>
           </div>

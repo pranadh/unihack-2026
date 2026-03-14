@@ -6,45 +6,50 @@ import { useSearchParams } from "next/navigation";
 import YouTubePlayer from "@/components/YouTubePlayer";
 import ChordTimeline from "@/components/ChordTimeline";
 import PlaybackControls from "@/components/PlaybackControls";
-import { getTimeline, getRequestStatus, type ChordTimeline as ChordTimelineType, type SongRequest } from "@/lib/api";
+import type { ChordEvent } from "@/lib/api";
+
+interface PlayData {
+  videoId: string;
+  youtubeUrl: string;
+  chords: ChordEvent[];
+  duration?: number;
+}
 
 function PlaybackContent() {
   const searchParams = useSearchParams();
-  const requestId = searchParams.get("id");
+  const videoId = searchParams.get("v");
 
-  const [timeline, setTimeline] = useState<ChordTimelineType | null>(null);
-  const [request, setRequest] = useState<SongRequest | null>(null);
+  const [playData, setPlayData] = useState<PlayData | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!requestId) {
-      setError("No request ID provided");
-      setLoading(false);
-      return;
-    }
-
-    const loadData = async () => {
-      try {
-        const [reqData, tlData] = await Promise.all([
-          getRequestStatus(requestId),
-          getTimeline(requestId),
-        ]);
-        setRequest(reqData);
-        setTimeline(tlData);
-      } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load timeline"
-        );
-      } finally {
+    try {
+      const raw = sessionStorage.getItem("karachordy-play");
+      if (!raw) {
+        setError("No playback data found. Please submit a YouTube link from the home page.");
         setLoading(false);
+        return;
       }
-    };
 
-    loadData();
-  }, [requestId]);
+      const data = JSON.parse(raw) as PlayData;
+
+      // Verify video ID matches if provided
+      if (videoId && data.videoId !== videoId) {
+        setError("Playback data does not match the requested video.");
+        setLoading(false);
+        return;
+      }
+
+      setPlayData(data);
+    } catch {
+      setError("Failed to load playback data.");
+    } finally {
+      setLoading(false);
+    }
+  }, [videoId]);
 
   const handleTimeUpdate = useCallback((time: number) => {
     setCurrentTime(time);
@@ -52,11 +57,7 @@ function PlaybackContent() {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleSeek = useCallback((_time: number) => {
-    // The YouTube player's seekTo is handled via the iframe API.
-    // For now, clicking a chord just shows intent; actual seek would
-    // require a ref to the player. This is a placeholder that can be
-    // enhanced with a player ref forwarding pattern.
-    // The time update callback will sync the chord display.
+    // TODO: wire up seek via player ref forwarding
   }, []);
 
   if (loading) {
@@ -88,12 +89,14 @@ function PlaybackContent() {
     );
   }
 
-  if (error) {
+  if (error || !playData) {
     return (
       <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center bg-zinc-950">
         <div className="max-w-md rounded-lg border border-red-500/20 bg-red-500/10 p-6 text-center">
           <h2 className="text-lg font-semibold text-red-400">Error</h2>
-          <p className="mt-2 text-sm text-red-300/80">{error}</p>
+          <p className="mt-2 text-sm text-red-300/80">
+            {error || "No playback data available."}
+          </p>
           <Link
             href="/"
             className="mt-4 inline-block rounded-md bg-zinc-800 px-4 py-2 text-sm text-white transition-colors hover:bg-zinc-700"
@@ -105,13 +108,11 @@ function PlaybackContent() {
     );
   }
 
-  if (!timeline) {
-    return (
-      <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center bg-zinc-950">
-        <p className="text-zinc-400">Timeline not available yet.</p>
-      </div>
-    );
-  }
+  const durationSeconds =
+    playData.duration ??
+    (playData.chords.length > 0
+      ? Math.max(...playData.chords.map((c) => c.end))
+      : 0);
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col bg-zinc-950">
@@ -122,11 +123,9 @@ function PlaybackContent() {
             <h1 className="text-lg font-semibold text-white">
               Playback Workspace
             </h1>
-            {request && (
-              <p className="text-xs text-zinc-500">
-                Video: {request.youtubeVideoId}
-              </p>
-            )}
+            <p className="text-xs text-zinc-500">
+              Video: {playData.videoId}
+            </p>
           </div>
           <PlaybackControls
             playbackRate={playbackRate}
@@ -140,7 +139,7 @@ function PlaybackContent() {
         {/* Video player */}
         <div className="flex-1 lg:flex-[2]">
           <YouTubePlayer
-            videoId={timeline.youtubeVideoId}
+            videoId={playData.videoId}
             onTimeUpdate={handleTimeUpdate}
             playbackRate={playbackRate}
           />
@@ -149,9 +148,9 @@ function PlaybackContent() {
         {/* Chord timeline sidebar */}
         <div className="flex h-[calc(100vh-12rem)] flex-col rounded-lg border border-zinc-800 bg-zinc-900/50 lg:flex-1">
           <ChordTimeline
-            chords={timeline.chords}
+            chords={playData.chords}
             currentTime={currentTime}
-            durationSeconds={timeline.durationSeconds}
+            durationSeconds={durationSeconds}
             onSeek={handleSeek}
           />
         </div>

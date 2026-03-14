@@ -1,6 +1,11 @@
 "use client";
 
-import type { SongRequest } from "@/lib/api";
+/** Local type – mirrors the shape the old backend API returned. */
+interface SongRequest {
+  id: string;
+  status: "queued" | "processing" | "complete" | "failed";
+  errorMessage?: string;
+}
 
 interface StatusPanelProps {
   request: SongRequest | null;

@@ -1,35 +1,9 @@
 /**
- * API client for the Karachordy backend.
+ * API client for Karachordy.
  *
- * All requests use relative paths (e.g. "/api/requests") so they go
- * through the Next.js rewrite proxy defined in next.config.ts.
- * This avoids CORS issues entirely — the browser only ever talks
- * to the same origin.
+ * Uses Next.js API routes that run server-side to proxy requests
+ * to the ChordMini API (avoids CORS and keeps the VPS untouched).
  */
-
-async function apiFetch<T>(
-  path: string,
-  init?: RequestInit
-): Promise<T> {
-  const url = path;
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
-  });
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new ApiError(
-      (body as { error?: string }).error ?? res.statusText,
-      res.status
-    );
-  }
-
-  return res.json() as Promise<T>;
-}
 
 export class ApiError extends Error {
   constructor(
@@ -43,76 +17,56 @@ export class ApiError extends Error {
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
-export interface SongRequest {
-  id: string;
-  youtubeUrl: string;
-  youtubeVideoId: string;
-  status: "queued" | "processing" | "complete" | "failed";
-  createdAt: string;
-  completedAt: string | null;
-  errorMessage: string | null;
-}
-
 export interface ChordEvent {
   start: number;
   end: number;
   chord: string;
 }
 
-export interface ChordTimeline {
-  id: string;
-  songRequestId: string;
-  youtubeVideoId: string;
-  durationSeconds: number;
-  version: number;
-  generatedAt: string;
+export interface RecognizeResult {
   chords: ChordEvent[];
-}
-
-export interface HistoryResponse {
-  items: SongRequest[];
-  total: number;
-  limit: number;
-  offset: number;
+  duration?: number;
 }
 
 // ── API Methods ─────────────────────────────────────────────────────────────
 
-/** Submit a YouTube URL for chord processing. */
-export async function submitRequest(url: string): Promise<SongRequest> {
-  return apiFetch<SongRequest>("/api/requests", {
+/**
+ * Submit a YouTube URL for chord recognition.
+ * Calls /api/recognize which downloads audio and sends to ChordMini.
+ */
+export async function recognizeChords(
+  youtubeUrl: string
+): Promise<RecognizeResult> {
+  const res = await fetch("/api/recognize", {
     method: "POST",
-    body: JSON.stringify({ url }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url: youtubeUrl }),
   });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(
+      (body as { error?: string }).error ?? res.statusText,
+      res.status
+    );
+  }
+
+  return res.json() as Promise<RecognizeResult>;
 }
 
-/** Get the status of a processing request. */
-export async function getRequestStatus(id: string): Promise<SongRequest> {
-  return apiFetch<SongRequest>(`/api/requests/${id}`);
-}
-
-/** Get the chord timeline for a completed request. */
-export async function getTimeline(
-  requestId: string
-): Promise<ChordTimeline> {
-  return apiFetch<ChordTimeline>(`/api/requests/${requestId}/timeline`);
-}
-
-/** Retry a failed request. */
-export async function retryRequest(
-  requestId: string
-): Promise<{ id: string; status: string; message: string }> {
-  return apiFetch(`/api/requests/${requestId}/retry`, {
+/**
+ * Health-check the ChordMini API via the proxy route.
+ */
+export async function checkHealth(): Promise<{ status: string }> {
+  const res = await fetch("/api/proxy", {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ endpoint: "/health", method: "GET" }),
   });
-}
 
-/** Get recent request history. */
-export async function getHistory(
-  limit = 20,
-  offset = 0
-): Promise<HistoryResponse> {
-  return apiFetch<HistoryResponse>(
-    `/api/history?limit=${limit}&offset=${offset}`
-  );
+  if (!res.ok) {
+    throw new ApiError("Health check failed", res.status);
+  }
+
+  return res.json() as Promise<{ status: string }>;
 }
