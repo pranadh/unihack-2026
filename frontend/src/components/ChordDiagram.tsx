@@ -56,6 +56,8 @@ const CHORD_DB: Record<string, ChordVoicing> = {
   Cm7: { frets: [-1, 3, 5, 3, 4, 3], baseFret: 1, barres: [3] },
   Dm7: { frets: [-1, -1, 0, 2, 1, 1], baseFret: 1 },
   Em7: { frets: [0, 2, 0, 0, 0, 0], baseFret: 1 },
+  Fm7: { frets: [1, 3, 1, 1, 1, 1], baseFret: 1, barres: [1] },
+  Gm7: { frets: [3, 5, 3, 3, 3, 3], baseFret: 1, barres: [3] },
   Am7: { frets: [-1, 0, 2, 0, 1, 0], baseFret: 1 },
   Bm7: { frets: [-1, 2, 0, 2, 0, 2], baseFret: 1 },
 
@@ -66,13 +68,23 @@ const CHORD_DB: Record<string, ChordVoicing> = {
   Fmaj7: { frets: [1, 3, 3, 2, 1, 0], baseFret: 1 },
   Gmaj7: { frets: [3, 2, 0, 0, 0, 2], baseFret: 1 },
   Amaj7: { frets: [-1, 0, 2, 1, 2, 0], baseFret: 1 },
+  Bmaj7: { frets: [-1, 2, 4, 3, 4, 2], baseFret: 1, barres: [2] },
 
   // Suspended chords
+  Csus2: { frets: [-1, 3, 5, 5, 3, 3], baseFret: 1, barres: [3] },
+  Csus4: { frets: [-1, 3, 3, 0, 1, 1], baseFret: 1 },
   Dsus2: { frets: [-1, -1, 0, 2, 3, 0], baseFret: 1 },
   Dsus4: { frets: [-1, -1, 0, 2, 3, 3], baseFret: 1 },
+  Esus2: { frets: [0, 2, 4, 4, 0, 0], baseFret: 1 },
+  Esus4: { frets: [0, 2, 2, 2, 0, 0], baseFret: 1 },
+  Fsus2: { frets: [1, 3, 3, 0, 1, 1], baseFret: 1, barres: [1] },
+  Fsus4: { frets: [1, 3, 3, 3, 1, 1], baseFret: 1, barres: [1] },
+  Gsus2: { frets: [3, 0, 0, 0, 3, 3], baseFret: 1 },
+  Gsus4: { frets: [3, 5, 5, 5, 3, 3], baseFret: 1, barres: [3] },
   Asus2: { frets: [-1, 0, 2, 2, 0, 0], baseFret: 1 },
   Asus4: { frets: [-1, 0, 2, 2, 3, 0], baseFret: 1 },
-  Esus4: { frets: [0, 2, 2, 2, 0, 0], baseFret: 1 },
+  Bsus2: { frets: [-1, 2, 4, 4, 2, 2], baseFret: 1, barres: [2] },
+  Bsus4: { frets: [-1, 2, 4, 4, 5, 2], baseFret: 1, barres: [2] },
 
   // Power chords
   C5: { frets: [-1, 3, 5, 5, -1, -1], baseFret: 1 },
@@ -83,10 +95,28 @@ const CHORD_DB: Record<string, ChordVoicing> = {
   A5: { frets: [-1, 0, 2, 2, -1, -1], baseFret: 1 },
   B5: { frets: [-1, 2, 4, 4, -1, -1], baseFret: 1 },
 
-  // Diminished / Augmented
-  Bdim: { frets: [-1, 2, 3, 4, 3, -1], baseFret: 1 },
+  // Diminished / Augmented / Dim7
   Cdim: { frets: [-1, 3, 4, 5, 4, -1], baseFret: 1 },
+  Ddim: { frets: [-1, -1, 0, 1, 3, 1], baseFret: 1 },
+  Edim: { frets: [0, 1, 2, 0, -1, -1], baseFret: 1 },
+  Fdim: { frets: [1, 2, 3, 1, -1, -1], baseFret: 1 },
+  Gdim: { frets: [3, 4, 5, 3, -1, -1], baseFret: 1 },
+  Adim: { frets: [-1, 0, 1, 2, 1, -1], baseFret: 1 },
+  Bdim: { frets: [-1, 2, 3, 4, 3, -1], baseFret: 1 },
   Caug: { frets: [-1, 3, 2, 1, 1, 0], baseFret: 1 },
+  Daug: { frets: [-1, -1, 0, 3, 3, 2], baseFret: 1 },
+  Eaug: { frets: [0, 3, 2, 1, 1, 0], baseFret: 1 },
+  Faug: { frets: [1, 0, 3, 2, 2, 1], baseFret: 1 },
+  Gaug: { frets: [3, 2, 1, 0, 0, 3], baseFret: 1 },
+  Aaug: { frets: [-1, 0, 3, 2, 2, 1], baseFret: 1 },
+  Baug: { frets: [-1, 2, 1, 0, 0, 3], baseFret: 1 },
+  Cdim7: { frets: [-1, 3, 4, 2, 4, 2], baseFret: 1 },
+  Ddim7: { frets: [-1, -1, 0, 1, 0, 1], baseFret: 1 },
+  Edim7: { frets: [0, 1, 2, 0, 2, 0], baseFret: 1 },
+  Fdim7: { frets: [1, 2, 3, 1, 3, 1], baseFret: 1, barres: [1] },
+  Gdim7: { frets: [3, 4, 5, 3, 5, 3], baseFret: 1, barres: [3] },
+  Adim7: { frets: [-1, 0, 1, 2, 1, 2], baseFret: 1 },
+  Bdim7: { frets: [-1, 2, 3, 1, 3, 1], baseFret: 1 },
 
   // Add / Slash common variants
   "Cadd9": { frets: [-1, 3, 2, 0, 3, 0], baseFret: 1 },
@@ -119,6 +149,42 @@ const CHORD_DB: Record<string, ChordVoicing> = {
   "Abm": { frets: [4, 6, 6, 4, 4, 4], baseFret: 1, barres: [4] },
   "A#m": { frets: [-1, 1, 3, 3, 2, 1], baseFret: 1, barres: [1] },
   "Bbm": { frets: [-1, 1, 3, 3, 2, 1], baseFret: 1, barres: [1] },
+
+  // Sharp/flat 7th chords
+  "C#7": { frets: [-1, 4, 6, 4, 6, 4], baseFret: 1, barres: [4] },
+  "Db7": { frets: [-1, 4, 6, 4, 6, 4], baseFret: 1, barres: [4] },
+  "D#7": { frets: [-1, 6, 8, 6, 8, 6], baseFret: 1, barres: [6] },
+  "Eb7": { frets: [-1, 6, 8, 6, 8, 6], baseFret: 1, barres: [6] },
+  "F#7": { frets: [2, 4, 2, 3, 2, 2], baseFret: 1, barres: [2] },
+  "Gb7": { frets: [2, 4, 2, 3, 2, 2], baseFret: 1, barres: [2] },
+  "G#7": { frets: [4, 6, 4, 5, 4, 4], baseFret: 1, barres: [4] },
+  "Ab7": { frets: [4, 6, 4, 5, 4, 4], baseFret: 1, barres: [4] },
+  "A#7": { frets: [-1, 1, 3, 1, 3, 1], baseFret: 1, barres: [1] },
+  "Bb7": { frets: [-1, 1, 3, 1, 3, 1], baseFret: 1, barres: [1] },
+
+  // Sharp/flat minor 7th chords
+  "C#m7": { frets: [-1, 4, 6, 4, 5, 4], baseFret: 1, barres: [4] },
+  "Dbm7": { frets: [-1, 4, 6, 4, 5, 4], baseFret: 1, barres: [4] },
+  "D#m7": { frets: [-1, 6, 8, 6, 7, 6], baseFret: 1, barres: [6] },
+  "Ebm7": { frets: [-1, 6, 8, 6, 7, 6], baseFret: 1, barres: [6] },
+  "F#m7": { frets: [2, 4, 2, 2, 2, 2], baseFret: 1, barres: [2] },
+  "Gbm7": { frets: [2, 4, 2, 2, 2, 2], baseFret: 1, barres: [2] },
+  "G#m7": { frets: [4, 6, 4, 4, 4, 4], baseFret: 1, barres: [4] },
+  "Abm7": { frets: [4, 6, 4, 4, 4, 4], baseFret: 1, barres: [4] },
+  "A#m7": { frets: [-1, 1, 3, 1, 2, 1], baseFret: 1, barres: [1] },
+  "Bbm7": { frets: [-1, 1, 3, 1, 2, 1], baseFret: 1, barres: [1] },
+
+  // Sharp/flat major 7th chords
+  "C#maj7": { frets: [-1, 4, 6, 5, 6, 4], baseFret: 1, barres: [4] },
+  "Dbmaj7": { frets: [-1, 4, 6, 5, 6, 4], baseFret: 1, barres: [4] },
+  "D#maj7": { frets: [-1, 6, 8, 7, 8, 6], baseFret: 1, barres: [6] },
+  "Ebmaj7": { frets: [-1, 6, 8, 7, 8, 6], baseFret: 1, barres: [6] },
+  "F#maj7": { frets: [2, 4, 3, 3, 2, 2], baseFret: 1, barres: [2] },
+  "Gbmaj7": { frets: [2, 4, 3, 3, 2, 2], baseFret: 1, barres: [2] },
+  "G#maj7": { frets: [4, 6, 5, 5, 4, 4], baseFret: 1, barres: [4] },
+  "Abmaj7": { frets: [4, 6, 5, 5, 4, 4], baseFret: 1, barres: [4] },
+  "A#maj7": { frets: [-1, 1, 3, 2, 3, 1], baseFret: 1, barres: [1] },
+  "Bbmaj7": { frets: [-1, 1, 3, 2, 3, 1], baseFret: 1, barres: [1] },
 };
 
 /**

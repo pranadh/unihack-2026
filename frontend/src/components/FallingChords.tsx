@@ -207,9 +207,22 @@ export default function FallingChords({
         const startTime = parseFloat(el.dataset.start ?? "0");
         const endTime = parseFloat(el.dataset.end ?? "0");
 
-        const topY = hitLineY - (startTime - smoothTime) * pixelsPerSecond;
-        const bottomY = hitLineY - (endTime - smoothTime) * pixelsPerSecond;
-        const height = Math.max(bottomY - topY, 36);
+        // Position so that the BOTTOM edge of the block aligns with the hit
+        // line when the chord's start time arrives (i.e. the chord is "played"
+        // once it has fully crossed the hit line, not when its top first touches).
+        //
+        // In this coordinate system, earlier times map to lower Y (further down
+        // the screen), and later times map to higher Y (further up). So:
+        //   startEdgeY = the leading/bottom edge (arrives at hit line first)
+        //   endEdgeY   = the trailing/top edge (arrives at hit line last)
+        const startEdgeY = hitLineY - (startTime - smoothTime) * pixelsPerSecond;
+        const endEdgeY = hitLineY - (endTime - smoothTime) * pixelsPerSecond;
+        // startEdgeY > endEdgeY because startTime < endTime
+        const height = Math.max(startEdgeY - endEdgeY, 36);
+        // Position block so its top is at endEdgeY, bottom at startEdgeY.
+        // Shift upward by height so the bottom edge (not top) aligns with the
+        // hit line when the chord's start time arrives.
+        const topY = startEdgeY - height;
 
         // Use transform for GPU acceleration (no layout thrash)
         el.style.transform = `translateY(${topY}px)`;
