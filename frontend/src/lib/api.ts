@@ -26,6 +26,7 @@ export interface ChordEvent {
 export interface RecognizeResult {
   chords: ChordEvent[];
   duration?: number;
+  bpm?: number;
 }
 
 // ── API Methods ─────────────────────────────────────────────────────────────

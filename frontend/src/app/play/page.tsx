@@ -13,6 +13,7 @@ interface PlayData {
   youtubeUrl: string;
   chords: ChordEvent[];
   duration?: number;
+  bpm?: number;
 }
 
 function PlaybackContent() {
@@ -123,9 +124,16 @@ function PlaybackContent() {
             <h1 className="text-lg font-semibold text-white">
               Playback Workspace
             </h1>
-            <p className="text-xs text-zinc-500">
-              Video: {playData.videoId}
-            </p>
+            <div className="flex items-center gap-3">
+              <p className="text-xs text-zinc-500">
+                Video: {playData.videoId}
+              </p>
+              {playData.bpm ? (
+                <span className="rounded bg-violet-600/20 px-1.5 py-0.5 text-xs font-medium text-violet-400">
+                  {Math.round(playData.bpm)} BPM
+                </span>
+              ) : null}
+            </div>
           </div>
           <PlaybackControls
             playbackRate={playbackRate}

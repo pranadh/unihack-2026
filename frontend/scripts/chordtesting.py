@@ -11,10 +11,13 @@ import soundfile as sf
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 
-FFMPEG_PATH = os.path.join(os.path.dirname(__file__), "ffmpeg",
+# Repo root is two levels up from frontend/scripts/
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+FFMPEG_PATH = os.path.join(_REPO_ROOT, "ffmpeg",
     "ffmpeg-8.0.1-essentials_build", "bin", "ffmpeg.exe")
 
-FFPROBE_PATH = os.path.join(os.path.dirname(__file__), "ffmpeg",
+FFPROBE_PATH = os.path.join(_REPO_ROOT, "ffmpeg",
     "ffmpeg-8.0.1-essentials_build", "bin", "ffprobe.exe")
 
 

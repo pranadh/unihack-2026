@@ -38,6 +38,7 @@ export default function Home() {
           youtubeUrl: url,
           chords: result.chords,
           duration: result.duration,
+          bpm: result.bpm,
         };
         sessionStorage.setItem("karachordy-play", JSON.stringify(playData));
 
