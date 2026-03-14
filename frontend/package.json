@@ -27,7 +27,9 @@
     "typescript": "^5"
   },
   "optionalDependencies": {
-    "lightningcss-linux-x64-gnu": "1.30.2",
-    "lightningcss-linux-x64-musl": "1.30.2"
+    "@tailwindcss/oxide-linux-x64-gnu": "EXACT_VERSION",
+    "@tailwindcss/oxide-linux-x64-musl": "EXACT_VERSION",
+    "lightningcss-linux-x64-gnu": "EXACT_VERSION",
+    "lightningcss-linux-x64-musl": "EXACT_VERSION"
   }
 }
