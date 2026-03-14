@@ -203,36 +203,55 @@ function normalizeChordName(raw: string): string {
   // ── MIREX colon format: "root:quality" ──
   // e.g. "C:maj", "A:min", "F#:min7", "Bb:sus4", "D:7", "G:maj7", "E:aug", "B:dim"
   if (name.includes(":")) {
-    const [root, quality] = name.split(":", 2);
-    if (!quality || quality === "maj") return root; // "C:maj" -> "C"
-    if (quality === "min") return `${root}m`;        // "A:min" -> "Am"
-    if (quality === "min7") return `${root}m7`;      // "F#:min7" -> "F#m7"
-    if (quality === "maj7") return `${root}maj7`;    // "G:maj7" -> "Gmaj7"
-    if (quality === "7") return `${root}7`;          // "D:7" -> "D7"
-    if (quality === "sus2") return `${root}sus2`;
-    if (quality === "sus4") return `${root}sus4`;
-    if (quality === "dim") return `${root}dim`;
-    if (quality === "dim7") return `${root}dim7`;
-    if (quality === "aug") return `${root}aug`;
-    if (quality === "hdim7") return `${root}m7`;     // half-dim -> closest: m7
-    if (quality === "minmaj7") return `${root}m7`;   // minor-major-7 -> closest: m7
-    if (quality === "9") return `${root}7`;          // 9th -> closest: 7
-    if (quality === "min9") return `${root}m7`;      // min9 -> closest: m7
-    if (quality === "maj9") return `${root}maj7`;    // maj9 -> closest: maj7
+    const [root, qualityRaw] = name.split(":", 2);
+    const [quality, inversionRaw] = (qualityRaw ?? "").split("/", 2);
+    const inversion = (inversionRaw ?? "").trim();
+    const inversionIsNote = /^[A-G][#b]?$/.test(inversion);
+
+    const withInversion = (base: string) =>
+      inversionIsNote ? `${base}/${inversion}` : base;
+
+    if (!quality || quality === "maj") return withInversion(root); // "C:maj" -> "C"
+    if (quality === "min") return withInversion(`${root}m`);       // "A:min" -> "Am"
+    if (quality === "min7") return withInversion(`${root}m7`);     // "F#:min7" -> "F#m7"
+    if (quality === "maj7") return withInversion(`${root}maj7`);   // "G:maj7" -> "Gmaj7"
+    if (quality === "7") return withInversion(`${root}7`);         // "D:7" -> "D7"
+    if (quality === "sus2") return withInversion(`${root}sus2`);
+    if (quality === "sus4") return withInversion(`${root}sus4`);
+    if (quality === "dim") return withInversion(`${root}dim`);
+    if (quality === "dim7") return withInversion(`${root}dim7`);
+    if (quality === "aug") return withInversion(`${root}aug`);
+    if (quality === "hdim7") return withInversion(`${root}m7`);    // half-dim -> closest: m7
+    if (quality === "minmaj7") return withInversion(`${root}m7`);  // minor-major-7 -> closest: m7
+    if (quality === "9") return withInversion(`${root}7`);         // 9th -> closest: 7
+    if (quality === "min9") return withInversion(`${root}m7`);     // min9 -> closest: m7
+    if (quality === "maj9") return withInversion(`${root}maj7`);   // maj9 -> closest: maj7
     // Fallback: try root + quality directly (e.g. "C:add9" -> "Cadd9")
-    return `${root}${quality}`;
+    return withInversion(`${root}${quality}`);
   }
 
   // ── Standard text format ──
+  let base = name;
+  let inversion: string | null = null;
+  if (name.includes("/")) {
+    const [basePart, inversionPart] = name.split("/", 2);
+    base = basePart;
+    const trimmedInversion = inversionPart.trim();
+    // Keep note inversions (e.g. G/B), drop voicing-degree suffixes (e.g. Emaj/5)
+    if (/^[A-G][#b]?$/.test(trimmedInversion)) {
+      inversion = trimmedInversion;
+    }
+  }
+
   // "Cmaj" -> "C" (but not "Cmaj7")
-  name = name.replace(/maj(?!7)$/i, "");
+  base = base.replace(/maj(?!7)$/i, "");
   // "Cmin" -> "Cm" (but not "Cmin7")
-  name = name.replace(/min(?!7)/i, "m");
+  base = base.replace(/min(?!7)/i, "m");
   // "Cmin7" -> "Cm7"
-  name = name.replace(/min7/i, "m7");
+  base = base.replace(/min7/i, "m7");
   // "Cmaj7" stays "Cmaj7"
 
-  return name;
+  return inversion ? `${base}/${inversion}` : base;
 }
 
 function lookupVoicing(chordName: string): ChordVoicing | null {
@@ -241,6 +260,13 @@ function lookupVoicing(chordName: string): ChordVoicing | null {
 
   // Direct lookup
   if (CHORD_DB[normalized]) return CHORD_DB[normalized];
+
+  // If chord includes slash inversion and no exact voicing exists,
+  // fall back to the base chord diagram.
+  if (normalized.includes("/")) {
+    const [base] = normalized.split("/", 2);
+    if (CHORD_DB[base]) return CHORD_DB[base];
+  }
 
   // Try without trailing modifiers (e.g., "Am7b5" -> "Am7" -> "Am")
   const simpler = normalized.replace(/[b#]?\d+$/, "");
