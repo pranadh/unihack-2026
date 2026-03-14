@@ -14,6 +14,7 @@ interface PlayData {
   chords: ChordEvent[];
   duration?: number;
   bpm?: number;
+  variable_tempo?: boolean;
 }
 
 function PlaybackContent() {
@@ -130,7 +131,7 @@ function PlaybackContent() {
               </p>
               {playData.bpm ? (
                 <span className="rounded bg-violet-600/20 px-1.5 py-0.5 text-xs font-medium text-violet-400">
-                  {Math.round(playData.bpm)} BPM
+                  {Math.round(playData.bpm)} BPM{playData.variable_tempo ? " (variable)" : ""}
                 </span>
               ) : null}
             </div>

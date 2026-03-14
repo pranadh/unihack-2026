@@ -27,6 +27,7 @@ export interface RecognizeResult {
   chords: ChordEvent[];
   duration?: number;
   bpm?: number;
+  variable_tempo?: boolean;
 }
 
 // ── API Methods ─────────────────────────────────────────────────────────────

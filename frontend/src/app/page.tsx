@@ -39,6 +39,7 @@ export default function Home() {
           chords: result.chords,
           duration: result.duration,
           bpm: result.bpm,
+          variable_tempo: result.variable_tempo,
         };
         sessionStorage.setItem("karachordy-play", JSON.stringify(playData));
 

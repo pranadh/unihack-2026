@@ -15,6 +15,19 @@ const YOUTUBE_URL_RE =
   /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)[\w-]{11}/;
 
 /**
+ * Fixed offset (seconds) subtracted from all chord timestamps to
+ * compensate for YouTube player latency.
+ *
+ * YouTube videos have ~50-200ms of encoding padding at the start, and
+ * the IFrame API reports playback time with some polling delay (~50ms
+ * average at our 100ms polling interval).  Combined, chords from the
+ * raw audio appear ~100-250ms LATE relative to the YouTube player.
+ *
+ * A positive value here shifts chords EARLIER.
+ */
+const YOUTUBE_OFFSET_S = 0.2;
+
+/**
  * Resolve the path to the BPM detection script.
  * In development `process.cwd()` points to the frontend/ directory,
  * so `scripts/detect_bpm.py` lives there.  In production the working
@@ -69,6 +82,7 @@ interface BpmResult {
   beat_count: number;
   grid_count: number;
   duration: number;
+  variable_tempo?: boolean;
   error?: string;
 }
 
@@ -105,7 +119,33 @@ function snapToGrid(time: number, grid: number[]): number {
 }
 
 /**
- * Snap every chord's start/end to the nearest 8th-note grid point.
+ * Find the local grid interval at a given time position.
+ * Returns the distance between the two nearest grid points surrounding `time`.
+ * Falls back to `fallback` if the grid is too sparse.
+ */
+function localGridInterval(time: number, grid: number[], fallback: number): number {
+  if (grid.length < 2) return fallback;
+
+  // Binary search for first grid point >= time
+  let lo = 0;
+  let hi = grid.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (grid[mid] < time) lo = mid + 1;
+    else hi = mid;
+  }
+
+  if (lo > 0 && lo < grid.length) {
+    return grid[lo] - grid[lo - 1];
+  }
+  if (lo === 0 && grid.length > 1) {
+    return grid[1] - grid[0];
+  }
+  return fallback;
+}
+
+/**
+ * Snap every chord's start/end to the nearest grid point.
  *
  * Post-processing guarantees:
  *   - Every chord has end > start (minimum gap = smallest grid interval)
@@ -146,6 +186,84 @@ function quantizeChords(chords: ChordEvent[], grid: number[]): ChordEvent[] {
   return quantized;
 }
 
+/**
+ * Apply a fixed time offset to all chord timestamps.
+ * Shifts chords earlier by `offsetS` seconds to compensate for
+ * YouTube player latency.  Clamps start to >= 0.
+ */
+function applyOffset(chords: ChordEvent[], offsetS: number): ChordEvent[] {
+  if (offsetS === 0) return chords;
+
+  return chords.map((c) => ({
+    start: Math.max(0, c.start - offsetS),
+    end: Math.max(0.001, c.end - offsetS), // end must stay > 0
+    chord: c.chord,
+  }));
+}
+
+/**
+ * Remove micro-chords that are likely recognition artifacts.
+ *
+ * The minimum duration threshold adapts to the local tempo:
+ *   - For real chords: threshold = 1/4 of local beat interval (≈ 16th note)
+ *   - For "N" (no-chord) events: threshold = 1/2 of local beat interval
+ *     (short silence gaps are almost always artifacts)
+ *
+ * After removal, consecutive identical chords are merged, and gaps
+ * left by removed chords are absorbed by the previous chord.
+ *
+ * Safety: if filtering would remove all chords, returns the input unchanged.
+ */
+function filterMicroChords(
+  chords: ChordEvent[],
+  grid: number[],
+  globalBpm: number
+): ChordEvent[] {
+  if (chords.length === 0) return chords;
+
+  // Global fallback interval: one beat at the detected BPM
+  const globalBeatInterval = globalBpm > 0 ? 60.0 / globalBpm : 0.5;
+
+  const kept: ChordEvent[] = [];
+
+  for (const c of chords) {
+    const dur = c.end - c.start;
+    const localInterval = localGridInterval(c.start, grid, globalBeatInterval);
+
+    // Threshold: 16th note for real chords, 8th note for "N" (silence)
+    const isNoChord = c.chord === "N";
+    const threshold = isNoChord
+      ? localInterval * 0.5   // ~8th note — short silences are artifacts
+      : localInterval * 0.25; // ~16th note — preserves passing chords
+
+    if (dur >= threshold) {
+      kept.push({ ...c });
+    }
+  }
+
+  // Safety: never filter everything
+  if (kept.length === 0) return chords;
+
+  // Merge consecutive identical chords (can happen after micro-chord removal)
+  const merged: ChordEvent[] = [kept[0]];
+  for (let i = 1; i < kept.length; i++) {
+    const prev = merged[merged.length - 1];
+    if (kept[i].chord === prev.chord) {
+      // Extend the previous chord to cover the gap + new chord
+      prev.end = kept[i].end;
+    } else {
+      // Fill any gap left by removed chords: extend previous chord's end
+      // to meet the next chord's start (no silent gaps)
+      if (kept[i].start > prev.end) {
+        prev.end = kept[i].start;
+      }
+      merged.push(kept[i]);
+    }
+  }
+
+  return merged;
+}
+
 // ── BPM detection via Python subprocess ───────────────────────────────────
 
 async function detectBpm(audioPath: string): Promise<BpmResult | null> {
@@ -179,15 +297,17 @@ async function detectBpm(audioPath: string): Promise<BpmResult | null> {
  * POST /api/recognize
  *
  * Accepts: { url: string }
- * Returns: { chords: ChordEvent[], duration?: number, bpm?: number }
+ * Returns: { chords: ChordEvent[], duration?: number, bpm?: number, variable_tempo?: boolean }
  *
  * Pipeline:
  *   1. Download YouTube audio via yt-dlp
  *   2. In parallel:
  *      a. Upload audio to ChordMini for chord recognition
- *      b. Run BPM detection via librosa
- *   3. Snap chord timestamps to the 8th-note beat grid
- *   4. Return quantized chord data
+ *      b. Run variable-tempo BPM detection via librosa PLP
+ *   3. Snap chord timestamps to the beat grid
+ *   4. Apply YouTube offset correction
+ *   5. Filter micro-chord artifacts
+ *   6. Return processed chord data
  */
 export async function POST(request: NextRequest) {
   let body: { url?: string };
@@ -294,19 +414,38 @@ export async function POST(request: NextRequest) {
 
     // ── Step 3: Quantize chords to beat grid ──────────────────────────
     let chords: ChordEvent[] = chordData.chords ?? [];
+    const hasGrid = bpmResult && bpmResult.grid.length >= 2;
+    const bpm = bpmResult?.bpm ?? 0;
 
-    if (bpmResult && bpmResult.grid.length >= 2 && chords.length > 0) {
+    if (hasGrid && chords.length > 0) {
       console.log(
-        `BPM detected: ${bpmResult.bpm}, grid points: ${bpmResult.grid_count}. Quantizing ${chords.length} chords.`
+        `BPM detected: ${bpm} (variable: ${bpmResult.variable_tempo}), ` +
+        `grid points: ${bpmResult.grid_count}. Quantizing ${chords.length} chords.`
       );
       chords = quantizeChords(chords, bpmResult.grid);
     }
 
-    // ── Step 4: Return enriched chord data ────────────────────────────
+    // ── Step 4: Apply YouTube offset correction ───────────────────────
+    chords = applyOffset(chords, YOUTUBE_OFFSET_S);
+
+    // ── Step 5: Filter micro-chord artifacts ──────────────────────────
+    const preFilterCount = chords.length;
+    chords = filterMicroChords(
+      chords,
+      hasGrid ? bpmResult.grid : [],
+      bpm
+    );
+    const filtered = preFilterCount - chords.length;
+    if (filtered > 0) {
+      console.log(`Filtered ${filtered} micro-chord artifacts (${preFilterCount} -> ${chords.length}).`);
+    }
+
+    // ── Step 6: Return enriched chord data ────────────────────────────
     return NextResponse.json({
       chords,
       duration: chordData.duration ?? bpmResult?.duration,
-      bpm: bpmResult?.bpm,
+      bpm: bpm || undefined,
+      variable_tempo: bpmResult?.variable_tempo,
     });
   } catch (err) {
     const message =
