@@ -10,6 +10,7 @@ import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { getRequiredEnv } from "./env.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -29,8 +30,20 @@ export interface DownloadResult {
  * Check if yt-dlp is available on the system.
  */
 export async function checkYtDlp(): Promise<boolean> {
+  const env = getRequiredEnv();
+
   try {
     await execFileAsync("yt-dlp", ["--version"], { timeout: 10_000 });
+    return true;
+  } catch {
+    // Fallback for VPS/systemd setups where yt-dlp is installed only in the
+    // backend Python environment (python -m yt_dlp) and not on global PATH.
+  }
+
+  try {
+    await execFileAsync(env.PYTHON_BIN, ["-m", "yt_dlp", "--version"], {
+      timeout: 10_000,
+    });
     return true;
   } catch {
     return false;

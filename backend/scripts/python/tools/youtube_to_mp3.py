@@ -27,8 +27,10 @@ except ImportError:
     sys.exit(1)
 
 
-# Repo root is two levels up from frontend/scripts/
-_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+# Repo root is four levels up from backend/scripts/python/tools/
+_REPO_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..")
+)
 FFMPEG_PATH = os.path.join(_REPO_ROOT, "ffmpeg", "ffmpeg-8.0.1-essentials_build", "bin", "ffmpeg.exe")
 
 

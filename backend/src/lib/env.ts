@@ -7,6 +7,11 @@ export type AppEnv = {
   REQUEST_RATE_LIMIT_PER_MINUTE: number;
   PYTHON_BIN: string;
   PYTHON_PIPELINE_SCRIPT: string;
+  YTDLP_JS_RUNTIMES: string;
+  YTDLP_REMOTE_COMPONENTS: string;
+  YTDLP_COOKIES_FILE: string;
+  YOUTUBE_COOKIES_PATH: string;
+  YTDLP_COOKIES_FROM_BROWSER: string;
   PORT: number;
   HOST: string;
 };
@@ -29,6 +34,13 @@ export const getEnv = (): AppEnv => {
   const PYTHON_BIN = process.env.PYTHON_BIN ?? "python3";
   const PYTHON_PIPELINE_SCRIPT =
     process.env.PYTHON_PIPELINE_SCRIPT ?? "scripts/python/process_song.py";
+  const YTDLP_JS_RUNTIMES = process.env.YTDLP_JS_RUNTIMES ?? "auto";
+  const YTDLP_REMOTE_COMPONENTS =
+    process.env.YTDLP_REMOTE_COMPONENTS ?? "ejs:github";
+  const YTDLP_COOKIES_FILE = process.env.YTDLP_COOKIES_FILE ?? "";
+  const YOUTUBE_COOKIES_PATH = process.env.YOUTUBE_COOKIES_PATH ?? "";
+  const YTDLP_COOKIES_FROM_BROWSER =
+    process.env.YTDLP_COOKIES_FROM_BROWSER ?? "";
   const PORT = Number(process.env.PORT ?? 4000);
   const HOST = process.env.HOST ?? "0.0.0.0";
 
@@ -45,6 +57,11 @@ export const getEnv = (): AppEnv => {
     REQUEST_RATE_LIMIT_PER_MINUTE,
     PYTHON_BIN,
     PYTHON_PIPELINE_SCRIPT,
+    YTDLP_JS_RUNTIMES,
+    YTDLP_REMOTE_COMPONENTS,
+    YTDLP_COOKIES_FILE,
+    YOUTUBE_COOKIES_PATH,
+    YTDLP_COOKIES_FROM_BROWSER,
     PORT,
     HOST,
   };
