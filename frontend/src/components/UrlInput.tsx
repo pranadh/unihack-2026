@@ -3,7 +3,6 @@
 import {
   useState,
   useCallback,
-  useEffect,
   useRef,
   type FormEvent,
   type KeyboardEvent,
@@ -26,6 +25,7 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<YouTubeSearchResult[]>([]);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [searchedQuery, setSearchedQuery] = useState("");
   const abortRef = useRef<AbortController | null>(null);
 
   const validateUrl = useCallback((value: string): boolean => {
@@ -40,51 +40,42 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
     return true;
   }, []);
 
-  useEffect(() => {
-    const value = inputValue.trim();
-
-    if (!value || YOUTUBE_REGEX.test(value) || value.length < 2) {
-      abortRef.current?.abort();
-      abortRef.current = null;
-      setResults([]);
-      setSearchError("");
-      setIsSearching(false);
-      setActiveIndex(-1);
-      return;
-    }
-
+  const runSearch = useCallback(async (query: string) => {
     const controller = new AbortController();
     abortRef.current?.abort();
     abortRef.current = controller;
 
-    const timer = setTimeout(async () => {
-      try {
-        setIsSearching(true);
-        setSearchError("");
-        const items = await searchYouTubeVideos(value, controller.signal);
-        if (controller.signal.aborted) {
-          return;
-        }
-        setResults(items);
-        setActiveIndex(items.length > 0 ? 0 : -1);
-      } catch (err) {
-        if (!controller.signal.aborted) {
-          setResults([]);
-          setActiveIndex(-1);
-          setSearchError(err instanceof Error ? err.message : "Search failed");
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setIsSearching(false);
-        }
-      }
-    }, 300);
+    try {
+      setIsSearching(true);
+      setError("");
+      setSearchError("");
+      setResults([]);
+      setActiveIndex(-1);
+      setSearchedQuery(query);
 
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [inputValue]);
+      const items = await searchYouTubeVideos(query, controller.signal);
+      if (controller.signal.aborted) {
+        return;
+      }
+
+      setResults(items);
+      setActiveIndex(items.length > 0 ? 0 : -1);
+
+      if (items.length === 0) {
+        setSearchError("No YouTube results found. Try a different query.");
+      }
+    } catch (err) {
+      if (!controller.signal.aborted) {
+        setResults([]);
+        setActiveIndex(-1);
+        setSearchError(err instanceof Error ? err.message : "Search failed");
+      }
+    } finally {
+      if (!controller.signal.aborted) {
+        setIsSearching(false);
+      }
+    }
+  }, []);
 
   const submitYoutubeUrl = useCallback(
     (url: string) => {
@@ -105,7 +96,7 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
     [submitYoutubeUrl]
   );
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
     const value = inputValue.trim();
@@ -119,22 +110,17 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
       return;
     }
 
+    if (value.length < 2) {
+      setError("Search query must be at least 2 characters.");
+      return;
+    }
+
     if (isSearching) {
       setError("Searching videos... Please wait a moment.");
       return;
     }
 
-    const selected =
-      activeIndex >= 0 && activeIndex < results.length
-        ? results[activeIndex]
-        : results[0];
-
-    if (selected) {
-      handleSelectResult(selected);
-      return;
-    }
-
-    setError("No matching video selected. Keep typing or paste a YouTube URL.");
+    await runSearch(value);
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -155,6 +141,12 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
     }
 
     if (event.key === "Enter" && !YOUTUBE_REGEX.test(inputValue.trim())) {
+      const value = inputValue.trim();
+
+      if (value !== searchedQuery) {
+        return;
+      }
+
       event.preventDefault();
       const selected =
         activeIndex >= 0 && activeIndex < results.length
@@ -175,12 +167,16 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
         <div className="flex flex-col gap-2 sm:flex-row">
           <input
             id="youtube-url"
-            type="url"
+            type="text"
             value={inputValue}
             onChange={(e) => {
               setInputValue(e.target.value);
               if (error) setError("");
               if (searchError) setSearchError("");
+              if (results.length > 0) {
+                setResults([]);
+                setActiveIndex(-1);
+              }
             }}
             onKeyDown={handleKeyDown}
             placeholder="Paste URL or type song title..."
@@ -192,10 +188,10 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
           />
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || isSearching}
             className="rounded-xl bg-gradient-to-r from-[#3242CA] via-[#7054b8] to-[#d7795f] px-6 py-3 text-base font-semibold text-white transition-all hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-amber-200/60 focus:ring-offset-2 focus:ring-offset-[#120f1b] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isLoading ? (
+            {isLoading || isSearching ? (
               <span className="flex items-center gap-2">
                 <svg
                   className="h-4 w-4 animate-spin"
@@ -216,19 +212,24 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
                     className="opacity-75"
                   />
                 </svg>
-                Processing
+                {isLoading ? "Processing" : "Searching"}
               </span>
             ) : (
-              "Analyse Chords"
+              (YOUTUBE_REGEX.test(inputValue.trim())
+                ? "Analyse Chords"
+                : "Search YouTube")
             )}
           </button>
         </div>
 
-        {isSearching && inputValue.trim().length >= 2 && !YOUTUBE_REGEX.test(inputValue.trim()) && (
+        {isSearching && searchedQuery.length >= 2 && !YOUTUBE_REGEX.test(inputValue.trim()) && (
           <p className="text-sm text-stone-200/85">Searching YouTube...</p>
         )}
 
-        {!isSearching && results.length > 0 && !YOUTUBE_REGEX.test(inputValue.trim()) && (
+        {!isSearching &&
+          results.length > 0 &&
+          searchedQuery === inputValue.trim() &&
+          !YOUTUBE_REGEX.test(inputValue.trim()) && (
           <ul
             className="max-h-80 overflow-y-auto rounded-xl border border-white/10 bg-[#17121f]/95"
             role="listbox"

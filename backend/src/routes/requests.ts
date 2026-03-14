@@ -47,10 +47,10 @@ export async function requestRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const q = request.query.q?.trim() ?? "";
-    const limitRaw = Number(request.query.limit ?? 8);
+    const limitRaw = Number(request.query.limit ?? 5);
     const limit = Number.isFinite(limitRaw)
       ? Math.min(Math.max(Math.floor(limitRaw), 1), 10)
-      : 8;
+      : 5;
 
     if (q.length < 2 || q.length > 100) {
       return reply.status(400).send({

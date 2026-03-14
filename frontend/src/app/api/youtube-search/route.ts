@@ -16,7 +16,7 @@ async function parseError(response: Response): Promise<string> {
 
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get("q")?.trim() ?? "";
-  const limit = request.nextUrl.searchParams.get("limit")?.trim() ?? "8";
+  const limit = request.nextUrl.searchParams.get("limit")?.trim() ?? "5";
 
   if (q.length < 2 || q.length > 100) {
     return NextResponse.json(

@@ -106,7 +106,7 @@ export async function searchYouTubeVideos(
   signal?: AbortSignal
 ): Promise<YouTubeSearchResult[]> {
   const res = await fetch(
-    `/api/youtube-search?q=${encodeURIComponent(query)}&limit=8`,
+    `/api/youtube-search?q=${encodeURIComponent(query)}&limit=5`,
     {
       method: "GET",
       cache: "no-store",
