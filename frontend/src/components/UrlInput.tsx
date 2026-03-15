@@ -117,8 +117,7 @@ export default function UrlInput({
       setIsValidatingDuration(true);
       const meta = await fetchVideoMeta(videoId);
       if (typeof meta.durationSeconds !== "number") {
-        setError("Unable to verify video duration right now. Please try a different video.");
-        return false;
+        return true;
       }
 
       if (
@@ -128,8 +127,7 @@ export default function UrlInput({
         return false;
       }
     } catch {
-      setError("Unable to verify video duration right now. Please try again.");
-      return false;
+      return true;
     } finally {
       setIsValidatingDuration(false);
     }
