@@ -14,9 +14,6 @@ import {
   searchYouTubeVideos,
   type YouTubeSearchResult,
 } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 
 interface UrlInputProps {
   onSubmit: (url: string) => void;
@@ -219,123 +216,125 @@ export default function UrlInput({
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-2xl">
-      <Card className="flex flex-col gap-3 rounded-[1.75rem] p-4 sm:p-5">
+      <div className="flex flex-col gap-3 rounded-[1.75rem] p-4 sm:p-5">
         <label htmlFor="youtube-url" className="text-sm font-medium text-stone-100/85">
           YouTube URL or Song Search
         </label>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Input
-            id="youtube-url"
-            type="text"
-            value={inputValue}
-            onChange={(e) => {
-              setInputValue(e.target.value);
-              if (error) setError("");
-              if (searchError) setSearchError("");
-              if (results.length > 0) {
-                setResults([]);
-                setActiveIndex(-1);
-              }
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder="Paste URL or type song title..."
-            className="flex-1"
-            disabled={isLoading || isValidatingDuration}
-            aria-describedby={error || searchError ? "url-error" : undefined}
-            aria-invalid={error || searchError ? "true" : "false"}
-            autoComplete="off"
-          />
-          <Button
-            type="submit"
-            disabled={isLoading || isSearching || isValidatingDuration}
-            className="h-11 px-6 text-base"
-          >
-            {isLoading || isSearching || isValidatingDuration ? (
-              <span className="flex items-center gap-2">
-                <svg
-                  className="h-4 w-4 animate-spin"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                    className="opacity-25"
-                  />
-                  <path
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    fill="currentColor"
-                    className="opacity-75"
-                  />
-                </svg>
-                {isLoading
-                  ? "Processing"
-                  : isValidatingDuration
-                    ? "Checking"
-                    : "Searching"}
-              </span>
-            ) : (
-              (YOUTUBE_REGEX.test(inputValue.trim())
-                ? "Analyse Chords"
-                : "Search YouTube")
-            )}
-          </Button>
+        <div className="relative">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              id="youtube-url"
+              type="text"
+              value={inputValue}
+              onChange={(e) => {
+                setInputValue(e.target.value);
+                if (error) setError("");
+                if (searchError) setSearchError("");
+                if (results.length > 0) {
+                  setResults([]);
+                  setActiveIndex(-1);
+                }
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="Paste URL or type song title..."
+              className="h-11 w-full flex-1 rounded-xl border border-[var(--border-subtle)] bg-transparent px-4 py-3 text-base text-[var(--foreground)] placeholder:text-[color:color-mix(in_oklab,var(--text-muted)_68%,transparent)] outline-none transition-colors focus-visible:border-[color:color-mix(in_oklab,var(--accent-tertiary)_58%,white_42%)] focus-visible:ring-1 focus-visible:ring-[color:color-mix(in_oklab,var(--accent-secondary)_45%,transparent)] disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isLoading || isValidatingDuration}
+              aria-describedby={error || searchError ? "url-error" : undefined}
+              aria-invalid={error || searchError ? "true" : "false"}
+              autoComplete="off"
+            />
+            <button
+              type="submit"
+              disabled={isLoading || isSearching || isValidatingDuration}
+              className="inline-flex h-11 items-center justify-center rounded-xl bg-[#3242ca] px-6 text-base font-semibold text-white transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#120f1b] disabled:pointer-events-none disabled:opacity-50"
+            >
+              {isLoading || isSearching || isValidatingDuration ? (
+                <span className="flex items-center gap-2">
+                  <svg
+                    className="h-4 w-4 animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      className="opacity-25"
+                    />
+                    <path
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      fill="currentColor"
+                      className="opacity-75"
+                    />
+                  </svg>
+                  {isLoading
+                    ? "Processing"
+                    : isValidatingDuration
+                      ? "Checking"
+                      : "Searching"}
+                </span>
+              ) : (
+                (YOUTUBE_REGEX.test(inputValue.trim())
+                  ? "Analyse Chords"
+                  : "Search YouTube")
+              )}
+            </button>
+          </div>
+
+          {!isSearching &&
+            results.length > 0 &&
+            searchedQuery === inputValue.trim() &&
+            !YOUTUBE_REGEX.test(inputValue.trim()) && (
+            <ul
+              className="absolute top-full right-0 left-0 z-30 mt-2 max-h-80 overflow-y-auto rounded-xl border border-[var(--border-subtle)] bg-[color:color-mix(in_oklab,var(--surface-elevated)_90%,black_10%)] shadow-[0_24px_48px_rgba(0,0,0,0.35)]"
+              role="listbox"
+              aria-label="YouTube search suggestions"
+            >
+              {results.map((result, index) => (
+                <li key={result.videoId}>
+                  <button
+                    type="button"
+                    className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors ${
+                      index === activeIndex
+                        ? "bg-[color:color-mix(in_oklab,var(--accent-secondary)_28%,transparent)]"
+                        : "hover:bg-[color:color-mix(in_oklab,var(--text-muted)_14%,transparent)]"
+                    }`}
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      void handleSelectResult(result);
+                    }}
+                  >
+                    {result.thumbnailUrl ? (
+                      <Image
+                        src={result.thumbnailUrl}
+                        alt=""
+                        width={80}
+                        height={48}
+                        className="h-12 w-20 rounded-md object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="h-12 w-20 rounded-md bg-white/10" />
+                    )}
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-medium text-[var(--foreground)]">
+                        {result.title}
+                      </span>
+                      <span className="block truncate text-xs text-[var(--text-muted)]/85">
+                        {result.channelTitle}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         {isSearching && searchedQuery.length >= 2 && !YOUTUBE_REGEX.test(inputValue.trim()) && (
           <p className="text-sm text-stone-200/85">Searching YouTube...</p>
-        )}
-
-        {!isSearching &&
-          results.length > 0 &&
-          searchedQuery === inputValue.trim() &&
-          !YOUTUBE_REGEX.test(inputValue.trim()) && (
-          <ul
-            className="max-h-80 overflow-y-auto rounded-xl border border-white/10 bg-[#17121f]/95"
-            role="listbox"
-            aria-label="YouTube search suggestions"
-          >
-            {results.map((result, index) => (
-              <li key={result.videoId}>
-                <button
-                  type="button"
-                  className={`flex w-full items-center gap-3 px-3 py-2 text-left transition-colors ${
-                    index === activeIndex
-                      ? "bg-amber-200/20"
-                      : "hover:bg-white/5"
-                  }`}
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    void handleSelectResult(result);
-                  }}
-                >
-                  {result.thumbnailUrl ? (
-                    <Image
-                      src={result.thumbnailUrl}
-                      alt=""
-                      width={80}
-                      height={48}
-                      className="h-12 w-20 rounded-md object-cover"
-                      unoptimized
-                    />
-                  ) : (
-                    <div className="h-12 w-20 rounded-md bg-white/10" />
-                  )}
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-white">
-                      {result.title}
-                    </span>
-                    <span className="block truncate text-xs text-stone-300/80">
-                      {result.channelTitle}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
         )}
 
         {(error || searchError) && (
@@ -343,7 +342,7 @@ export default function UrlInput({
             {error || searchError}
           </p>
         )}
-      </Card>
+      </div>
     </form>
   );
 }

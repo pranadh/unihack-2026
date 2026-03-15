@@ -1,17 +1,16 @@
 "use client";
 
-import { useState, useCallback, type FormEvent } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { recognizeChords } from "@/lib/api";
-
-const YOUTUBE_REGEX =
-  /^(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})(?:[&?#].*)?$/;
+import { recordAccess } from "@/lib/history";
+import UrlInput from "@/components/UrlInput";
 
 const HOW_STEPS = [
   {
     icon: "*",
-    title: "Paste any YouTube URL",
-    desc: "Paste the YouTube link of a song that you want to learn.",
+    title: "Paste any YouTube URL or search",
+    desc: "Paste the YouTube link or search for a song that you want to learn.",
   },
   {
     icon: "*",
@@ -27,7 +26,6 @@ const HOW_STEPS = [
 
 export default function Home() {
   const router = useRouter();
-  const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState("");
@@ -67,7 +65,7 @@ export default function Home() {
         if (result.requestId) {
           recordAccess({
             requestId: result.requestId,
-            youtubeUrl: url,
+            youtubeUrl,
             videoId,
           });
         }
@@ -85,23 +83,6 @@ export default function Home() {
     [router]
   );
 
-  const onFormSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-
-    const value = url.trim();
-    if (!value) {
-      setError("Please paste a YouTube URL.");
-      return;
-    }
-
-    if (!YOUTUBE_REGEX.test(value)) {
-      setError("Please enter a valid YouTube URL.");
-      return;
-    }
-
-    await handleSubmit(value);
-  };
-
   return (
     <div className="bg-[#0d0b12] pb-14 text-[#f4f7ff]">
       <div className="mx-auto w-full max-w-[1440px] px-6 lg:px-[120px]">
@@ -114,28 +95,9 @@ export default function Home() {
               Paste any YouTube link. Get real-time chord cues synced to the music. Follow along and play.
             </p>
 
-            <form className="mt-1 flex items-center gap-2" onSubmit={onFormSubmit}>
-              <div className="flex h-11 w-[360px] items-center rounded-md border border-[#2a3348] bg-[#0f1627] px-3">
-                <input
-                  type="text"
-                  value={url}
-                  onChange={(event) => {
-                    setUrl(event.target.value);
-                    if (error) setError("");
-                  }}
-                  placeholder="Search YouTube..."
-                  className="h-full w-full bg-transparent text-[14px] font-medium text-[#94a3b8] outline-none"
-                  disabled={isLoading}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="flex h-11 items-center justify-center rounded-md bg-[#3242ca] px-4 text-[14px] font-bold text-white disabled:opacity-60"
-              >
-                {isLoading ? "Analysing..." : "Analyse Chords"}
-              </button>
-            </form>
+            <div className="mt-1 w-full max-w-2xl">
+              <UrlInput onSubmit={handleSubmit} isLoading={isLoading} />
+            </div>
 
             {statusMessage ? (
               <p className="mt-1 max-w-lg text-sm text-[#aeb7d9]">{statusMessage}</p>

@@ -3,6 +3,13 @@
 :root {
   --background: #120f1b;
   --foreground: #f8efe7;
+  --surface: #0f1627;
+  --surface-elevated: #111827;
+  --border-subtle: #2a3348;
+  --text-muted: #aeb7d9;
+  --accent-primary: #3242ca;
+  --accent-secondary: #7054b8;
+  --accent-tertiary: #d7795f;
 }
 
 @theme inline {
@@ -23,7 +30,27 @@ body {
     radial-gradient(circle at 50% 100%, rgba(109, 92, 161, 0.14), transparent 36%),
     linear-gradient(180deg, #171220 0%, #100d17 52%, #0b0911 100%);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 body::before,

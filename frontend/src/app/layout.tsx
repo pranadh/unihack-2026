@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Karachordy - Chord-Synced YouTube Practice",
   description:
-    "Paste a YouTube link and practise along with synchronised chord detection. Powered by ChordMini AI.",
+    "Paste a YouTube link and practise along with synchronised chord detection.",
 };
 
 export default function RootLayout({
