@@ -31,6 +31,7 @@ export interface RecognizeResult {
 
 export interface VideoMetaResult {
   title: string;
+  durationSeconds?: number | null;
 }
 
 export interface YouTubeSearchResult {
@@ -99,6 +100,22 @@ export async function fetchVideoTitle(videoId: string): Promise<string> {
 
   const data = (await res.json()) as VideoMetaResult;
   return data.title;
+}
+
+export async function fetchVideoMeta(videoId: string): Promise<VideoMetaResult> {
+  const res = await fetch(`/api/video-meta?v=${encodeURIComponent(videoId)}`, {
+    method: "GET",
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError(
+      (body as { error?: string }).error ?? "Failed to fetch video metadata",
+      res.status
+    );
+  }
+
+  return (await res.json()) as VideoMetaResult;
 }
 
 export async function searchYouTubeVideos(

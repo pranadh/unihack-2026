@@ -99,7 +99,10 @@ export default function Home() {
         </div>
 
         {/* URL Input */}
-        <UrlInput onSubmit={handleSubmit} isLoading={isLoading} />
+        <UrlInput
+          onSubmit={handleSubmit}
+          isLoading={isLoading}
+        />
 
         {/* Processing status */}
         {statusMessage && (

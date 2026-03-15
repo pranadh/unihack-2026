@@ -4,29 +4,46 @@ import {
   useState,
   useCallback,
   useRef,
+  useEffect,
   type FormEvent,
   type KeyboardEvent,
 } from "react";
 import Image from "next/image";
-import { searchYouTubeVideos, type YouTubeSearchResult } from "@/lib/api";
+import {
+  fetchVideoMeta,
+  searchYouTubeVideos,
+  type YouTubeSearchResult,
+} from "@/lib/api";
 
 interface UrlInputProps {
   onSubmit: (url: string) => void;
   isLoading: boolean;
 }
 
+const MAX_ANALYSIS_DURATION_SECONDS = 10 * 60;
+
 const YOUTUBE_REGEX =
   /^(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})(?:[&?#].*)?$/;
 
-export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
+export default function UrlInput({
+  onSubmit,
+  isLoading,
+}: UrlInputProps) {
   const [inputValue, setInputValue] = useState("");
   const [error, setError] = useState("");
   const [searchError, setSearchError] = useState("");
+  const [isValidatingDuration, setIsValidatingDuration] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<YouTubeSearchResult[]>([]);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [searchedQuery, setSearchedQuery] = useState("");
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
 
   const validateUrl = useCallback((value: string): boolean => {
     if (!value.trim()) {
@@ -88,12 +105,48 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
     [onSubmit]
   );
 
+  const canAnalyzeVideo = useCallback(async (youtubeUrl: string) => {
+    const videoIdMatch = youtubeUrl.match(/(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/);
+    const videoId = videoIdMatch?.[1] ?? "";
+
+    if (!videoId) {
+      return true;
+    }
+
+    try {
+      setIsValidatingDuration(true);
+      const meta = await fetchVideoMeta(videoId);
+      if (typeof meta.durationSeconds !== "number") {
+        setError("Unable to verify video duration right now. Please try a different video.");
+        return false;
+      }
+
+      if (
+        meta.durationSeconds > MAX_ANALYSIS_DURATION_SECONDS
+      ) {
+        setError("This video is longer than 10 minutes and cannot be analysed.");
+        return false;
+      }
+    } catch {
+      setError("Unable to verify video duration right now. Please try again.");
+      return false;
+    } finally {
+      setIsValidatingDuration(false);
+    }
+
+    return true;
+  }, []);
+
   const handleSelectResult = useCallback(
-    (result: YouTubeSearchResult) => {
+    async (result: YouTubeSearchResult) => {
       setInputValue(result.title);
+      const allowed = await canAnalyzeVideo(result.youtubeUrl);
+      if (!allowed) {
+        return;
+      }
       submitYoutubeUrl(result.youtubeUrl);
     },
-    [submitYoutubeUrl]
+    [canAnalyzeVideo, submitYoutubeUrl]
   );
 
   const handleSubmit = async (e: FormEvent) => {
@@ -106,6 +159,11 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
     }
 
     if (validateUrl(value)) {
+      const allowed = await canAnalyzeVideo(value);
+      if (!allowed) {
+        return;
+      }
+
       submitYoutubeUrl(value);
       return;
     }
@@ -153,7 +211,7 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
           ? results[activeIndex]
           : results[0];
       if (selected) {
-        handleSelectResult(selected);
+        void handleSelectResult(selected);
       }
     }
   };
@@ -181,17 +239,17 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
             onKeyDown={handleKeyDown}
             placeholder="Paste URL or type song title..."
             className="flex-1 rounded-xl border border-amber-100/15 bg-[#241a24]/70 px-4 py-3 text-base text-white placeholder-stone-300/40 outline-none transition-colors focus:border-amber-300/50 focus:ring-1 focus:ring-amber-300/45"
-            disabled={isLoading}
+            disabled={isLoading || isValidatingDuration}
             aria-describedby={error || searchError ? "url-error" : undefined}
             aria-invalid={error || searchError ? "true" : "false"}
             autoComplete="off"
           />
           <button
             type="submit"
-            disabled={isLoading || isSearching}
+            disabled={isLoading || isSearching || isValidatingDuration}
             className="rounded-xl bg-gradient-to-r from-[#3242CA] via-[#7054b8] to-[#d7795f] px-6 py-3 text-base font-semibold text-white transition-all hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-amber-200/60 focus:ring-offset-2 focus:ring-offset-[#120f1b] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isLoading || isSearching ? (
+            {isLoading || isSearching || isValidatingDuration ? (
               <span className="flex items-center gap-2">
                 <svg
                   className="h-4 w-4 animate-spin"
@@ -212,7 +270,11 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
                     className="opacity-75"
                   />
                 </svg>
-                {isLoading ? "Processing" : "Searching"}
+                {isLoading
+                  ? "Processing"
+                  : isValidatingDuration
+                    ? "Checking"
+                    : "Searching"}
               </span>
             ) : (
               (YOUTUBE_REGEX.test(inputValue.trim())
@@ -246,7 +308,7 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
                   }`}
                   onMouseDown={(event) => {
                     event.preventDefault();
-                    handleSelectResult(result);
+                    void handleSelectResult(result);
                   }}
                 >
                   {result.thumbnailUrl ? (
