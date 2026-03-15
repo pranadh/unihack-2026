@@ -28,7 +28,7 @@ app.addHook("onRequest", async (request, reply) => {
   );
   reply.header(
     "Access-Control-Allow-Headers",
-    "Content-Type, Authorization"
+    "Content-Type, Authorization, x-guest-session-id"
   );
   if (origin) {
     reply.header("Vary", "Origin");

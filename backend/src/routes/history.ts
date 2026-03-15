@@ -6,17 +6,24 @@
 
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
+import { getGuestSessionHashFromRequest } from "../lib/guest-session.js";
 
 export async function historyRoutes(app: FastifyInstance): Promise<void> {
   // GET /api/history - List recent requests
   app.get<{
-    Querystring: { limit?: string; offset?: string; userId?: string };
+    Querystring: { limit?: string; offset?: string };
   }>("/api/history", async (request, reply) => {
     const limit = Math.min(Number(request.query.limit ?? 20), 100);
     const offset = Number(request.query.offset ?? 0);
-    const userId = request.query.userId;
+    const guestSessionHash = getGuestSessionHashFromRequest(request);
 
-    const where = userId ? { userId } : {};
+    if (!guestSessionHash) {
+      return reply.status(400).send({
+        error: "Missing guest session. Provide x-guest-session-id header.",
+      });
+    }
+
+    const where = { guestSessionHash };
 
     const [requests, total] = await Promise.all([
       prisma.songRequest.findMany({

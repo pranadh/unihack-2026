@@ -11,6 +11,7 @@ import type { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
 import { getRequiredEnv } from "../lib/env.js";
 import { extractYouTubeVideoId, isValidYouTubeUrl } from "../lib/youtube.js";
+import { getGuestSessionHashFromRequest } from "../lib/guest-session.js";
 import {
   createSongRequest,
   retryRequest,
@@ -143,10 +144,19 @@ export async function requestRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
+    const guestSessionHash = getGuestSessionHashFromRequest(request);
+
+    if (!guestSessionHash) {
+      return reply.status(400).send({
+        error: "Missing guest session. Provide x-guest-session-id header.",
+      });
+    }
+
     const existing = await prisma.songRequest.findFirst({
       where: {
         youtubeVideoId: videoId,
         status: "complete",
+        guestSessionHash,
       },
       orderBy: { completedAt: "desc" },
       include: {
@@ -183,6 +193,13 @@ export async function requestRoutes(app: FastifyInstance): Promise<void> {
     Body: { url: string; userId?: string };
   }>("/api/requests", async (request, reply) => {
     const { url, userId } = request.body ?? {};
+    const guestSessionHash = getGuestSessionHashFromRequest(request);
+
+    if (!userId && !guestSessionHash) {
+      return reply.status(400).send({
+        error: "Missing ownership context. Provide userId or guest session.",
+      });
+    }
 
     if (!url || typeof url !== "string") {
       return reply.status(400).send({
@@ -197,7 +214,7 @@ export async function requestRoutes(app: FastifyInstance): Promise<void> {
     }
 
     try {
-      const songRequest = await createSongRequest(url, userId);
+      const songRequest = await createSongRequest(url, userId, guestSessionHash);
       return reply.status(201).send({
         id: songRequest.id,
         status: songRequest.status,
@@ -217,11 +234,14 @@ export async function requestRoutes(app: FastifyInstance): Promise<void> {
     Params: { id: string };
   }>("/api/requests/:id", async (request, reply) => {
     const { id } = request.params;
+    const guestSessionHash = getGuestSessionHashFromRequest(request);
 
     const songRequest = await prisma.songRequest.findUnique({
       where: { id },
       select: {
         id: true,
+        userId: true,
+        guestSessionHash: true,
         youtubeUrl: true,
         youtubeVideoId: true,
         status: true,
@@ -235,7 +255,17 @@ export async function requestRoutes(app: FastifyInstance): Promise<void> {
       return reply.status(404).send({ error: "Request not found" });
     }
 
-    return reply.send(songRequest);
+    const isOwner =
+      songRequest.guestSessionHash === null ||
+      (guestSessionHash !== null && songRequest.guestSessionHash === guestSessionHash);
+
+    if (!isOwner) {
+      return reply.status(403).send({ error: "Forbidden" });
+    }
+
+    const { userId: _userId, guestSessionHash: _guestSessionHash, ...response } = songRequest;
+
+    return reply.send(response);
   });
 
   // GET /api/requests/:id/timeline - Get chord timeline with events
@@ -243,6 +273,7 @@ export async function requestRoutes(app: FastifyInstance): Promise<void> {
     Params: { id: string };
   }>("/api/requests/:id/timeline", async (request, reply) => {
     const { id } = request.params;
+    const guestSessionHash = getGuestSessionHashFromRequest(request);
 
     const songRequest = await prisma.songRequest.findUnique({
       where: { id },
@@ -259,6 +290,14 @@ export async function requestRoutes(app: FastifyInstance): Promise<void> {
 
     if (!songRequest) {
       return reply.status(404).send({ error: "Request not found" });
+    }
+
+    const isOwner =
+      songRequest.guestSessionHash === null ||
+      (guestSessionHash !== null && songRequest.guestSessionHash === guestSessionHash);
+
+    if (!isOwner) {
+      return reply.status(403).send({ error: "Forbidden" });
     }
 
     if (!songRequest.chordTimeline) {
@@ -294,6 +333,24 @@ export async function requestRoutes(app: FastifyInstance): Promise<void> {
     Params: { id: string };
   }>("/api/requests/:id/retry", async (request, reply) => {
     const { id } = request.params;
+    const guestSessionHash = getGuestSessionHashFromRequest(request);
+
+    const existing = await prisma.songRequest.findUnique({
+      where: { id },
+      select: { id: true, userId: true, guestSessionHash: true },
+    });
+
+    if (!existing) {
+      return reply.status(404).send({ error: "Request not found" });
+    }
+
+    const isOwner =
+      existing.guestSessionHash === null ||
+      (guestSessionHash !== null && existing.guestSessionHash === guestSessionHash);
+
+    if (!isOwner) {
+      return reply.status(403).send({ error: "Forbidden" });
+    }
 
     try {
       const retried = await retryRequest(id);

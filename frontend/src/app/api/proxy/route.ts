@@ -22,6 +22,14 @@ const normalizeEndpoint = (endpoint: string) => {
 };
 
 export async function POST(request: NextRequest) {
+  const guestSessionId = request.headers.get("x-guest-session-id")?.trim();
+  if (!guestSessionId) {
+    return NextResponse.json(
+      { error: "Missing guest session header." },
+      { status: 400 }
+    );
+  }
+
   let payload: ProxyRequest;
 
   try {
@@ -53,6 +61,7 @@ export async function POST(request: NextRequest) {
       method: payload.method,
       headers: {
         "Content-Type": "application/json",
+        ...(guestSessionId ? { "x-guest-session-id": guestSessionId } : {}),
       },
       body: payload.method === "GET" ? undefined : JSON.stringify(payload.body ?? {}),
       signal: controller.signal,

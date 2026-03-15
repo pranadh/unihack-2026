@@ -15,6 +15,14 @@ async function parseError(response: Response): Promise<string> {
 }
 
 export async function GET(request: NextRequest) {
+  const guestSessionId = request.headers.get("x-guest-session-id")?.trim();
+  if (!guestSessionId) {
+    return NextResponse.json(
+      { error: "Missing guest session header." },
+      { status: 400 }
+    );
+  }
+
   const q = request.nextUrl.searchParams.get("q")?.trim() ?? "";
   const limit = request.nextUrl.searchParams.get("limit")?.trim() ?? "5";
 
@@ -34,6 +42,7 @@ export async function GET(request: NextRequest) {
       method: "GET",
       cache: "no-store",
       signal: AbortSignal.timeout(12_000),
+      headers: guestSessionId ? { "x-guest-session-id": guestSessionId } : undefined,
     });
 
     if (!backendRes.ok) {

@@ -4,6 +4,8 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import UrlInput from "@/components/UrlInput";
 import { recognizeChords } from "@/lib/api";
+import { recordAccess } from "@/lib/history";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const HOME_STEPS = [
   {
@@ -57,8 +59,17 @@ export default function Home() {
           chords: result.chords,
           duration: result.duration,
           bpm: result.bpm,
+          requestId: result.requestId,
         };
         sessionStorage.setItem("karachordy-play", JSON.stringify(playData));
+
+        if (result.requestId) {
+          recordAccess({
+            requestId: result.requestId,
+            youtubeUrl: url,
+            videoId,
+          });
+        }
 
         // Navigate to playback
         router.push(`/play?v=${videoId}`);
@@ -124,16 +135,20 @@ export default function Home() {
         {/* How it works */}
         <div className="mt-6 grid w-full max-w-3xl grid-cols-1 gap-4 sm:grid-cols-3">
           {HOME_STEPS.map((item) => (
-            <div
+            <Card
               key={item.step}
-              className="rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,248,240,0.08),rgba(255,248,240,0.03))] p-5 text-center shadow-[0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur"
+              className="rounded-2xl bg-[linear-gradient(180deg,rgba(255,248,240,0.08),rgba(255,248,240,0.03))] text-center shadow-[0_18px_50px_rgba(0,0,0,0.18)]"
             >
-              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-amber-200/35 to-rose-300/30 text-sm font-bold text-stone-50">
-                {item.step}
-              </div>
-              <h3 className="text-sm font-semibold text-white">{item.title}</h3>
-              <p className="mt-1 text-xs text-stone-200/65">{item.desc}</p>
-            </div>
+              <CardHeader className="items-center px-5 pb-2 pt-5">
+                <div className="mx-auto mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-amber-200/35 to-rose-300/30 text-sm font-bold text-stone-50">
+                  {item.step}
+                </div>
+                <CardTitle className="text-sm">{item.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="px-5 pb-5 pt-0">
+                <CardDescription className="text-xs text-stone-200/65">{item.desc}</CardDescription>
+              </CardContent>
+            </Card>
           ))}
         </div>
       </div>

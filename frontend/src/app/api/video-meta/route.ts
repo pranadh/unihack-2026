@@ -21,6 +21,13 @@ function parseDurationSeconds(html: string): number | null {
 }
 
 export async function GET(request: NextRequest) {
+  if (!request.headers.get("x-guest-session-id")?.trim()) {
+    return NextResponse.json(
+      { error: "Missing guest session header." },
+      { status: 400 }
+    );
+  }
+
   const videoId = request.nextUrl.searchParams.get("v")?.trim();
 
   if (!videoId || !VIDEO_ID_RE.test(videoId)) {
@@ -48,7 +55,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Video title not found." }, { status: 404 });
     }
 
-    const data = (await oembedResponse.json()) as { title?: unknown };
+    const data = (await oembedResponse.json()) as {
+      title?: unknown;
+      thumbnail_url?: unknown;
+    };
 
     if (typeof data.title !== "string" || data.title.trim().length === 0) {
       return NextResponse.json({ error: "Video title unavailable." }, { status: 404 });
@@ -60,7 +70,16 @@ export async function GET(request: NextRequest) {
       durationSeconds = parseDurationSeconds(watchHtml);
     }
 
-    return NextResponse.json({ title: data.title.trim(), durationSeconds });
+    const thumbnailUrl =
+      typeof data.thumbnail_url === "string" && data.thumbnail_url.trim().length > 0
+        ? data.thumbnail_url.trim()
+        : undefined;
+
+    return NextResponse.json({
+      title: data.title.trim(),
+      thumbnailUrl,
+      durationSeconds,
+    });
   } catch {
     return NextResponse.json({ error: "Failed to fetch video title." }, { status: 500 });
   }

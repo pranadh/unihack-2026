@@ -36,6 +36,7 @@ model User {
 model SongRequest {
   id               String             @id @default(cuid())
   userId           String?
+  guestSessionHash String?
   youtubeUrl       String
   youtubeVideoId   String
   status           SongRequestStatus  @default(queued)
@@ -48,6 +49,7 @@ model SongRequest {
   systemLogs       SystemLog[]
 
   @@index([userId, createdAt])
+  @@index([guestSessionHash, createdAt])
   @@index([youtubeVideoId])
   @@index([status])
 }

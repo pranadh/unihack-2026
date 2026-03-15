@@ -22,8 +22,10 @@ import {
   isChordDisplayMode,
   type ChordDisplayMode,
 } from "@/lib/notation";
+import { recordAccess } from "@/lib/history";
 
 interface PlayData {
+  requestId?: string;
   videoId: string;
   youtubeUrl: string;
   chords: ChordEvent[];
@@ -122,6 +124,19 @@ function PlaybackContent() {
   }, [chordDisplayMode]);
 
   useEffect(() => {
+    if (!playData?.requestId) {
+      return;
+    }
+
+    recordAccess({
+      requestId: playData.requestId,
+      youtubeUrl: playData.youtubeUrl,
+      videoId: playData.videoId,
+      title: playData.title,
+    });
+  }, [playData?.requestId, playData?.title, playData?.videoId, playData?.youtubeUrl]);
+
+  useEffect(() => {
     if (!playData?.videoId || playData.title) {
       return;
     }
@@ -143,6 +158,14 @@ function PlaybackContent() {
           const next = { ...prev, title };
           try {
             sessionStorage.setItem("karachordy-play", JSON.stringify(next));
+            if (next.requestId) {
+              recordAccess({
+                requestId: next.requestId,
+                youtubeUrl: next.youtubeUrl,
+                videoId: next.videoId,
+                title,
+              });
+            }
           } catch {
             // Ignore storage write issues; title can still render in memory.
           }
