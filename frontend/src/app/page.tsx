@@ -8,19 +8,34 @@ import UrlInput from "@/components/UrlInput";
 
 const HOW_STEPS = [
   {
-    icon: "*",
+    icon: "🔗",
     title: "Paste any YouTube URL or search",
     desc: "Paste the YouTube link or search for a song that you want to learn.",
   },
   {
-    icon: "*",
+    icon: "⚡",
     title: "Wait while Karachordy analyzes",
     desc: "Karachordy analyzes the track and aligns each chord to exact timestamps.",
   },
   {
-    icon: "*",
+    icon: "🎵",
     title: "Play and follow highlighted chords",
     desc: "Follow the highlighted chord as the video plays, pauses, or seeks.",
+  },
+];
+
+const TIMELINE_FEATURES = [
+  {
+    icon: "⏱️",
+    label: "Real-time sync",
+  },
+  {
+    icon: "🎸",
+    label: "Chord guidance",
+  },
+  {
+    icon: "🎹",
+    label: "Diagram switch",
   },
 ];
 
@@ -120,9 +135,11 @@ export default function Home() {
                   key={item.title}
                   className={`flex-1 px-4 ${index < HOW_STEPS.length - 1 ? "border-r border-[#2a3348]" : ""}`}
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="text-[14px] text-[#9aa5ff]">{item.icon}</span>
-                    <span className="w-[250px] text-[15px] font-bold leading-tight text-[#f3f4f6]">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full border border-[#2f3a57] bg-[#0f1524] text-[15px]">
+                      {item.icon}
+                    </span>
+                    <span className="w-[240px] text-[15px] font-bold leading-tight text-[#f3f4f6]">
                       {item.title}
                     </span>
                   </div>
@@ -144,14 +161,36 @@ export default function Home() {
                 with this karaoke style timeline which denotes chords and the duration of each.
                 Switch between tabs or piano chord diagrams for easy learning.
               </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                {TIMELINE_FEATURES.map((item) => (
+                  <div
+                    key={item.label}
+                    className="inline-flex items-center gap-2 rounded-full border border-[#2f3a57] bg-[#0f1524] px-3 py-1.5"
+                  >
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1b2640] text-[14px]">
+                      {item.icon}
+                    </span>
+                    <span className="text-[12px] font-semibold tracking-[0.2px] text-[#d6dcff]">
+                      {item.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div className="flex-1">
-              <div className="aspect-video w-full rounded-[10px] border border-[#2a3348] bg-[#101726]">
-                <div className="flex h-full items-center justify-center px-6 text-center text-sm font-medium text-[#aeb7d9]">
-                  Video wireframe object (1920x1080) - replace this container with a video/embed component.
-                </div>
-              </div>
+              <video
+                className="aspect-video w-full overflow-hidden rounded-[10px] border border-[#2a3348] bg-black"
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="metadata"
+                aria-label="Chord timeline demo video"
+              >
+                <source src="/demo-video.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
             </div>
           </div>
         </section>

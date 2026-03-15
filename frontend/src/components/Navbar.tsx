@@ -14,7 +14,7 @@ export default function Navbar() {
 
   return (
     <nav className="border-b border-[#2A3AB8] bg-[#3242CA]">
-      <div className="mx-auto flex h-[58px] w-full max-w-[1440px] items-center justify-between px-6 lg:px-[120px]">
+      <div className="mx-auto flex h-[72px] w-full max-w-[1440px] items-center justify-between px-6 lg:px-[120px]">
         <Link
           href="/"
           className="inline-flex items-center"
@@ -23,14 +23,14 @@ export default function Navbar() {
           <Image
             src="/karachordy_colour.png"
             alt="Karachordy"
-            width={240}
-            height={48}
+            width={300}
+            height={60}
             priority
-            className="h-10 w-auto md:h-12"
+            className="h-12 w-auto md:h-14"
           />
         </Link>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {NAV_ITEMS.map((item) => {
             const isActive =
               item.href === "/"
@@ -41,7 +41,7 @@ export default function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`rounded-[6px] px-3 py-[5px] text-[13px] font-bold leading-none transition-colors ${
+                className={`rounded-[8px] px-4 py-2 text-[15px] font-bold leading-none transition-colors ${
                   isActive
                     ? "bg-[#1A2140] text-[#F4F7FF]"
                     : "bg-[#1A2140] text-[#D8E0FF] hover:text-[#F4F7FF]"
