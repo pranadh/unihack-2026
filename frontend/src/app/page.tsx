@@ -1,42 +1,45 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import UrlInput from "@/components/UrlInput";
 import { recognizeChords } from "@/lib/api";
 
-const HOME_STEPS = [
+const YOUTUBE_REGEX =
+  /^(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})(?:[&?#].*)?$/;
+
+const HOW_STEPS = [
   {
-    step: "1",
-    title: "Paste Link",
-    desc: "Enter any YouTube URL with music",
+    icon: "*",
+    title: "Paste any YouTube URL",
+    desc: "Paste the YouTube link of a song that you want to learn.",
   },
   {
-    step: "2",
-    title: "AI Analysis",
-    desc: "ChordMini extracts timed chords",
+    icon: "*",
+    title: "Wait while Karachordy analyzes",
+    desc: "Karachordy analyzes the track and aligns each chord to exact timestamps.",
   },
   {
-    step: "3",
-    title: "Practice",
-    desc: "Play video with synced chord cues",
+    icon: "*",
+    title: "Play and follow highlighted chords",
+    desc: "Follow the highlighted chord as the video plays, pauses, or seeks.",
   },
 ];
 
 export default function Home() {
   const router = useRouter();
+  const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState("");
 
   const handleSubmit = useCallback(
-    async (url: string) => {
+    async (youtubeUrl: string) => {
       setIsLoading(true);
       setError("");
-      setStatusMessage("Downloading audio and extracting chords... This may take up to 2 minutes.");
+      setStatusMessage("Processing link and building chord timeline...");
 
       try {
-        const result = await recognizeChords(url);
+        const result = await recognizeChords(youtubeUrl);
 
         if (!result.chords || result.chords.length === 0) {
           setError("No chords detected in this video. Try a different song.");
@@ -46,14 +49,14 @@ export default function Home() {
         }
 
         // Store result in sessionStorage so the play page can read it
-        const videoIdMatch = url.match(
+        const videoIdMatch = youtubeUrl.match(
           /(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/
         );
         const videoId = videoIdMatch?.[1] ?? "";
 
         const playData = {
           videoId,
-          youtubeUrl: url,
+          youtubeUrl,
           chords: result.chords,
           duration: result.duration,
           bpm: result.bpm,
@@ -73,69 +76,114 @@ export default function Home() {
     [router]
   );
 
+  const onFormSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+
+    const value = url.trim();
+    if (!value) {
+      setError("Please paste a YouTube URL.");
+      return;
+    }
+
+    if (!YOUTUBE_REGEX.test(value)) {
+      setError("Please enter a valid YouTube URL.");
+      return;
+    }
+
+    await handleSubmit(value);
+  };
+
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)] flex-col items-center justify-center bg-[#0d0b12] px-4 py-10">
-      <div className="flex w-full max-w-3xl flex-col items-center gap-8">
-        {/* Hero */}
-        <div className="relative w-full overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(145deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))] px-6 py-10 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur sm:px-10">
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute -left-10 top-8 h-28 w-28 rounded-full border border-white/8 bg-white/4" />
-            <div className="absolute bottom-8 left-8 flex gap-2 opacity-60">
-              <span className="h-px w-14 bg-white/12" />
-              <span className="h-px w-14 bg-white/12" />
-              <span className="h-px w-14 bg-white/12" />
-              <span className="h-px w-14 bg-white/12" />
-            </div>
-          </div>
-
-          <div className="relative text-center">
-            <h1 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
-              Like karaoke... but for your instrument!
+    <div className="bg-[#0d0b12] pb-14 text-[#f4f7ff]">
+      <div className="mx-auto w-full max-w-[1440px] px-6 lg:px-[120px]">
+        <section className="flex h-[355px] items-center justify-center pt-3 text-center">
+          <div className="flex h-[294px] w-[900px] flex-col items-center justify-center gap-3">
+            <h1 className="w-[760px] text-[54px] font-bold leading-[1.05] tracking-[-0.6px]">
+              Like karaoke... but for your instrument.
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-stone-200/78">
-              Paste a YouTube link. Get synced chords. Practice along.
+            <p className="w-full text-center text-[16px] leading-[1.35] font-medium text-[#aeb7d9]">
+              Paste any YouTube link. Get real-time chord cues synced to the music. Follow along and play.
             </p>
-          </div>
-        </div>
 
-        {/* URL Input */}
-        <UrlInput
-          onSubmit={handleSubmit}
-          isLoading={isLoading}
-        />
-
-        {/* Processing status */}
-        {statusMessage && (
-          <div className="w-full max-w-2xl rounded-2xl border border-amber-200/20 bg-amber-100/10 p-4 shadow-[0_12px_40px_rgba(217,121,95,0.12)] backdrop-blur">
-            <div className="flex items-center gap-3">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-amber-200 border-t-transparent" />
-              <p className="text-sm text-stone-100">{statusMessage}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <div className="w-full max-w-2xl rounded-2xl border border-rose-300/25 bg-rose-300/10 p-4 backdrop-blur">
-            <p className="text-sm text-red-100">{error}</p>
-          </div>
-        )}
-
-        {/* How it works */}
-        <div className="mt-6 grid w-full max-w-3xl grid-cols-1 gap-4 sm:grid-cols-3">
-          {HOME_STEPS.map((item) => (
-            <div
-              key={item.step}
-              className="rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(255,248,240,0.08),rgba(255,248,240,0.03))] p-5 text-center shadow-[0_18px_50px_rgba(0,0,0,0.18)] backdrop-blur"
-            >
-              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-amber-200/35 to-rose-300/30 text-sm font-bold text-stone-50">
-                {item.step}
+            <form className="mt-1 flex items-center gap-2" onSubmit={onFormSubmit}>
+              <div className="flex h-11 w-[360px] items-center rounded-md border border-[#2a3348] bg-[#0f1627] px-3">
+                <input
+                  type="text"
+                  value={url}
+                  onChange={(event) => {
+                    setUrl(event.target.value);
+                    if (error) setError("");
+                  }}
+                  placeholder="Search YouTube..."
+                  className="h-full w-full bg-transparent text-[14px] font-medium text-[#94a3b8] outline-none"
+                  disabled={isLoading}
+                />
               </div>
-              <h3 className="text-sm font-semibold text-white">{item.title}</h3>
-              <p className="mt-1 text-xs text-stone-200/65">{item.desc}</p>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="flex h-11 items-center justify-center rounded-md bg-[#3242ca] px-4 text-[14px] font-bold text-white disabled:opacity-60"
+              >
+                {isLoading ? "Analysing..." : "Analyse Chords"}
+              </button>
+            </form>
+
+            {statusMessage ? (
+              <p className="mt-1 max-w-lg text-sm text-[#aeb7d9]">{statusMessage}</p>
+            ) : null}
+
+            {error ? (
+              <p className="mt-1 max-w-lg rounded-md border border-red-300/30 bg-red-300/10 px-3 py-2 text-sm text-red-100">
+                {error}
+              </p>
+            ) : null}
+          </div>
+        </section>
+
+        <section>
+          <div className="py-[36px]">
+            <h2 className="text-[34px] font-bold leading-tight">How it works</h2>
+            <div className="mt-3 flex w-full items-center rounded-xl border border-[#2a3348] bg-[#111827] py-[22px]">
+              {HOW_STEPS.map((item, index) => (
+                <div
+                  key={item.title}
+                  className={`flex-1 px-4 ${index < HOW_STEPS.length - 1 ? "border-r border-[#2a3348]" : ""}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-[14px] text-[#9aa5ff]">{item.icon}</span>
+                    <span className="w-[250px] text-[15px] font-bold leading-tight text-[#f3f4f6]">
+                      {item.title}
+                    </span>
+                  </div>
+                  <p className="mt-2 w-[250px] text-[12px] font-medium leading-[1.3] text-[#aeb7d9]">
+                    {item.desc}
+                  </p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        </section>
+
+        <section className="pb-6">
+          <div className="flex items-start gap-7 px-0 py-7">
+            <div className="flex h-[360px] flex-1 flex-col justify-center gap-2 py-2">
+              <h2 className="text-[34px] font-bold leading-tight">Chord timeline</h2>
+              <p className="text-[14px] font-medium leading-[1.4] text-[#aeb7d9]">
+                Play the right chords at the right time alongside your favourite tracks. Follow along
+                with this karaoke style timeline which denotes chords and the duration of each.
+                Switch between tabs or piano chord diagrams for easy learning.
+              </p>
+            </div>
+
+            <div className="flex-1">
+              <div className="aspect-video w-full rounded-[10px] border border-[#2a3348] bg-[#101726]">
+                <div className="flex h-full items-center justify-center px-6 text-center text-sm font-medium text-[#aeb7d9]">
+                  Video wireframe object (1920x1080) - replace this container with a video/embed component.
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );
