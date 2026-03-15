@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 const NAV_ITEMS = [
@@ -16,10 +17,17 @@ export default function Navbar() {
       <div className="mx-auto flex h-[58px] w-full max-w-[1440px] items-center justify-between px-6 lg:px-[120px]">
         <Link
           href="/"
-          className="inline-flex items-center text-[32px] font-bold leading-none tracking-tight text-[#F4F7FF]"
+          className="inline-flex items-center"
           aria-label="Karachordy home"
         >
-          Karachordy
+          <Image
+            src="/karachordy_colour.png"
+            alt="Karachordy"
+            width={240}
+            height={48}
+            priority
+            className="h-10 w-auto md:h-12"
+          />
         </Link>
 
         <div className="flex items-center gap-2">
