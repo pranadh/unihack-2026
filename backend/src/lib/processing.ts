@@ -27,7 +27,8 @@ export interface ProcessingResult {
  */
 export async function createSongRequest(
   youtubeUrl: string,
-  userId?: string | null
+  userId?: string | null,
+  guestSessionHash?: string | null
 ): Promise<SongRequest> {
   const videoId = extractYouTubeVideoId(youtubeUrl);
   if (!videoId) {
@@ -39,6 +40,11 @@ export async function createSongRequest(
     where: {
       youtubeVideoId: videoId,
       status: "complete",
+      ...(userId
+        ? { userId }
+        : guestSessionHash
+          ? { guestSessionHash }
+          : {}),
     },
     include: { chordTimeline: true },
   });
@@ -52,9 +58,10 @@ export async function createSongRequest(
     data: {
       youtubeUrl,
       youtubeVideoId: videoId,
-      status: "queued",
-      userId: userId ?? null,
-    },
+        status: "queued",
+        userId: userId ?? null,
+        guestSessionHash: guestSessionHash ?? null,
+      },
   });
 
   // Fire-and-forget async processing

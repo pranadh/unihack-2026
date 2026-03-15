@@ -60,8 +60,17 @@ export default function Home() {
           chords: result.chords,
           duration: result.duration,
           bpm: result.bpm,
+          requestId: result.requestId,
         };
         sessionStorage.setItem("karachordy-play", JSON.stringify(playData));
+
+        if (result.requestId) {
+          recordAccess({
+            requestId: result.requestId,
+            youtubeUrl: url,
+            videoId,
+          });
+        }
 
         // Navigate to playback
         router.push(`/play?v=${videoId}`);

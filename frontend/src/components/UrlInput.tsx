@@ -14,6 +14,9 @@ import {
   searchYouTubeVideos,
   type YouTubeSearchResult,
 } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 interface UrlInputProps {
   onSubmit: (url: string) => void;
@@ -117,8 +120,7 @@ export default function UrlInput({
       setIsValidatingDuration(true);
       const meta = await fetchVideoMeta(videoId);
       if (typeof meta.durationSeconds !== "number") {
-        setError("Unable to verify video duration right now. Please try a different video.");
-        return false;
+        return true;
       }
 
       if (
@@ -128,8 +130,7 @@ export default function UrlInput({
         return false;
       }
     } catch {
-      setError("Unable to verify video duration right now. Please try again.");
-      return false;
+      return true;
     } finally {
       setIsValidatingDuration(false);
     }
@@ -218,12 +219,12 @@ export default function UrlInput({
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-2xl">
-      <div className="flex flex-col gap-3 rounded-[1.75rem] border border-white/10 bg-[linear-gradient(150deg,rgba(255,255,255,0.08),rgba(255,255,255,0.03))] p-4 shadow-[0_20px_70px_rgba(0,0,0,0.22)] backdrop-blur sm:p-5">
+      <Card className="flex flex-col gap-3 rounded-[1.75rem] p-4 sm:p-5">
         <label htmlFor="youtube-url" className="text-sm font-medium text-stone-100/85">
           YouTube URL or Song Search
         </label>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <input
+          <Input
             id="youtube-url"
             type="text"
             value={inputValue}
@@ -238,16 +239,16 @@ export default function UrlInput({
             }}
             onKeyDown={handleKeyDown}
             placeholder="Paste URL or type song title..."
-            className="flex-1 rounded-xl border border-amber-100/15 bg-[#241a24]/70 px-4 py-3 text-base text-white placeholder-stone-300/40 outline-none transition-colors focus:border-amber-300/50 focus:ring-1 focus:ring-amber-300/45"
+            className="flex-1"
             disabled={isLoading || isValidatingDuration}
             aria-describedby={error || searchError ? "url-error" : undefined}
             aria-invalid={error || searchError ? "true" : "false"}
             autoComplete="off"
           />
-          <button
+          <Button
             type="submit"
             disabled={isLoading || isSearching || isValidatingDuration}
-            className="rounded-xl bg-gradient-to-r from-[#3242CA] via-[#7054b8] to-[#d7795f] px-6 py-3 text-base font-semibold text-white transition-all hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-amber-200/60 focus:ring-offset-2 focus:ring-offset-[#120f1b] disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-11 px-6 text-base"
           >
             {isLoading || isSearching || isValidatingDuration ? (
               <span className="flex items-center gap-2">
@@ -281,7 +282,7 @@ export default function UrlInput({
                 ? "Analyse Chords"
                 : "Search YouTube")
             )}
-          </button>
+          </Button>
         </div>
 
         {isSearching && searchedQuery.length >= 2 && !YOUTUBE_REGEX.test(inputValue.trim()) && (
@@ -342,7 +343,7 @@ export default function UrlInput({
             {error || searchError}
           </p>
         )}
-      </div>
+      </Card>
     </form>
   );
 }

@@ -53,7 +53,14 @@ async function wait(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function waitForCompletion(requestId: string): Promise<void> {
+function getGuestSessionId(request: NextRequest): string | null {
+  return request.headers.get("x-guest-session-id")?.trim() ?? null;
+}
+
+async function waitForCompletion(
+  requestId: string,
+  guestSessionId: string
+): Promise<void> {
   const maxAttempts = 120;
   const pollIntervalMs = 2_000;
 
@@ -62,6 +69,7 @@ async function waitForCompletion(requestId: string): Promise<void> {
       method: "GET",
       cache: "no-store",
       signal: AbortSignal.timeout(20_000),
+      headers: { "x-guest-session-id": guestSessionId },
     });
 
     if (!statusRes.ok) {
@@ -105,12 +113,22 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const guestSessionId = getGuestSessionId(request);
+
+    if (!guestSessionId) {
+      return NextResponse.json(
+        { error: "Missing guest session header." },
+        { status: 400 }
+      );
+    }
+
     const lookupRes = await fetch(
       `${API_BASE_URL}/api/requests/lookup?url=${encodeURIComponent(url)}`,
       {
         method: "GET",
         cache: "no-store",
         signal: AbortSignal.timeout(20_000),
+        headers: { "x-guest-session-id": guestSessionId },
       }
     );
 
@@ -134,12 +152,13 @@ export async function POST(request: NextRequest) {
 
     const createRes = await fetch(`${API_BASE_URL}/api/requests`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
       body: JSON.stringify({ url }),
       cache: "no-store",
       signal: AbortSignal.timeout(20_000),
+      headers: {
+        "Content-Type": "application/json",
+        "x-guest-session-id": guestSessionId,
+      },
     });
 
     if (!createRes.ok) {
@@ -151,7 +170,7 @@ export async function POST(request: NextRequest) {
 
     const createData = (await createRes.json()) as CreateRequestResponse;
 
-    await waitForCompletion(createData.id);
+    await waitForCompletion(createData.id, guestSessionId);
 
     const timelineRes = await fetch(
       `${API_BASE_URL}/api/requests/${createData.id}/timeline`,
@@ -159,6 +178,7 @@ export async function POST(request: NextRequest) {
         method: "GET",
         cache: "no-store",
         signal: AbortSignal.timeout(20_000),
+        headers: { "x-guest-session-id": guestSessionId },
       }
     );
 
